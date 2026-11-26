@@ -1,0 +1,14 @@
+{
+  "name": "langgraph-xray",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Interactive source-code anatomy workbench & self-evolving semantic knowledge graph for LangGraph",
+  "packageManager": "pnpm@12.21.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @langgraph-xray/web dev",
+    "dev:api": "pnpm --filter @langgraph-xray/edge-api dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "inspect:ch02": "uv run --project tools/kernel-inspector python -m langgraph_xray_inspector.cli record ch02_superstep_barrier"
+  }
+}

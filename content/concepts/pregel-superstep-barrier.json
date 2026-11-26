@@ -1,0 +1,15 @@
+{
+  "concept_id": "pregel-superstep-barrier",
+  "node_kind": "theory",
+  "lens": "pregel_paper",
+  "title": "BSP 整体同步并行屏障 (Superstep Barrier)",
+  "tier1_tldr": "同一超步并发执行的节点（如 B、C）仅能读取上一轮冻结快照；本轮所有产生的新写入必须等全员执行完毕后在同步屏障处统一合入，下一轮超步才可见，从根源上消除并发读写竞态。",
+  "tier1_analogy": "如同回合制策略游戏：双方先基于上一回合局面同时暗中下达指令，回合结算阶段才统一生效更新地图。",
+  "tier2_slice": {
+    "type": "paper_bridge",
+    "citation": "Malewicz et al., Pregel: A System for Large-Scale Graph Processing (SIGMOD 2010), §2",
+    "original_quote": "Parallelism within a superstep is barrier-synchronized... Messages sent during superstep S are guaranteed to be delivered and readable at the beginning of superstep S+1.",
+    "langgraph_adaptation": "原版论文通过顶点间点对点消息队列传值；LangGraph 将消息队列演进为共享 Named Channels（如 LastValue、BinaryOperatorAggregate），在 apply_writes() 屏障处批量调用 channel.update() 递增版本号。"
+  },
+  "ast_matchers": ["apply_writes", "SyncPregelLoop"]
+}

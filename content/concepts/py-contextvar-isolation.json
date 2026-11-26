@@ -1,0 +1,14 @@
+{
+  "concept_id": "py-contextvar-isolation",
+  "node_kind": "syntax",
+  "lens": "python_syntax",
+  "title": "ContextVar 并发任务级隐式上下文隔离",
+  "tier1_tldr": "为什么节点函数内直接调用无参的 interrupt() 就能精准拿到当前节点的恢复索引与草稿箱？因为引擎在启动每个并发任务前将私有 PregelScratchpad 注入了 ContextVar，多线程/异步协程并发跑 B、C 节点时各自隔离互不串台。",
+  "tier1_analogy": "等价于 Node.js 的 AsyncLocalStorage 或 Java 虚拟线程友好的 ScopedValue / ThreadLocal。",
+  "tier2_slice": {
+    "type": "python_sandbox",
+    "minimal_code": "from contextvars import ContextVar, copy_context\n\n_scratchpad: ContextVar[str] = ContextVar('scratchpad')\n\ndef run_node(name: str):\n    _scratchpad.set(f'pad_of_{name}')\n    print(name, 'reads ->', _scratchpad.get())\n\nfor n in ('node_b', 'node_c'):\n    copy_context().run(run_node, n)",
+    "expected_stdout": "node_b reads -> pad_of_node_b\nnode_c reads -> pad_of_node_c"
+  },
+  "ast_matchers": ["ContextVar", "PregelScratchpad"]
+}

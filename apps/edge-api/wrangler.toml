@@ -1,0 +1,12 @@
+name = "langgraph-xray-api"
+main = "src/index.ts"
+compatibility_date = "2025-02-01"
+
+# Daily Cron Trigger for L1 Knowledge Graph clustering & heat score aggregation
+[triggers]
+crons = ["0 3 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "langgraph-xray-d1"
+database_id = "local-dev-placeholder"

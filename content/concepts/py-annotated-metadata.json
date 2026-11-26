@@ -1,0 +1,14 @@
+{
+  "concept_id": "py-annotated-metadata",
+  "node_kind": "syntax",
+  "lens": "python_syntax",
+  "title": "Annotated[T, metadata] 运行时类型元数据挂载",
+  "tier1_tldr": "对静态类型检查器而言 Annotated[list, operator.add] 等价于普通 list；但第二个参数 operator.add 会原封不动保留在类的运行时类型注解对象中，供 StateGraph 编译期反射提取并组装 BinaryOperatorAggregate 归约通道。",
+  "tier1_analogy": "等价于 Go 语言的 Struct Tag（`json:\"logs\"`）或 TypeScript 的 reflect-metadata 属性装饰器。",
+  "tier2_slice": {
+    "type": "python_sandbox",
+    "minimal_code": "import operator\nfrom typing import Annotated, TypedDict, get_type_hints\n\nclass State(TypedDict):\n    logs: Annotated[list[str], operator.add]\n\nhints = get_type_hints(State, include_extras=True)\nreducer = hints['logs'].__metadata__[0]\nprint('Extracted reducer:', reducer(['a'], ['b']))",
+    "expected_stdout": "Extracted reducer: ['a', 'b']"
+  },
+  "ast_matchers": ["Annotated", "get_type_hints"]
+}

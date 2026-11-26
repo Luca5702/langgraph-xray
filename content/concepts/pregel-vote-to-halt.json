@@ -1,0 +1,15 @@
+{
+  "concept_id": "pregel-vote-to-halt",
+  "node_kind": "theory",
+  "lens": "pregel_paper",
+  "title": "Vote to Halt（去中心化顶点休眠与收敛终止）",
+  "tier1_tldr": "没有中央调度器硬编码下一步跑谁：每个节点执行完默认进入休眠，只有当其订阅的触发通道（triggers）版本号大于该节点已见版本（versions_seen）时才被唤醒；当某轮无任何节点被唤醒时全图自然停机。",
+  "tier1_analogy": "类似 Excel 响应式公式表：只有上游依赖单元格数值变化时下游公式才重算，没有任何单元格数值变动时重算自动终止。",
+  "tier2_slice": {
+    "type": "paper_bridge",
+    "citation": "Malewicz et al., Pregel: A System for Large-Scale Graph Processing (SIGMOD 2010), §3.1",
+    "original_quote": "A vertex deactivates itself by voting to halt... Computation terminates when all vertices are simultaneously inactive and no messages are in transit.",
+    "langgraph_adaptation": "原版论文由节点代码显式调用 VoteToHalt()；LangGraph 在 prepare_next_tasks() 中自动比对全局 channel_versions 与节点私有账本 versions_seen[node]，返回空任务字典即退出主循环。"
+  },
+  "ast_matchers": ["prepare_next_tasks"]
+}

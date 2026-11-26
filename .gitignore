@@ -1,0 +1,29 @@
+# Node & Frontend
+node_modules/
+dist/
+.wrangler/
+.next/
+.vite/
+*.tsbuildinfo
+
+# Python & uv
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Local SQLite / D1 & Env
+*.sqlite
+*.sqlite-journal
+*.db
+.env
+.env.*
+.dev.vars
+
+# OS & Editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
