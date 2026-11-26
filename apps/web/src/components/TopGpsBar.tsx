@@ -1,16 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  BookOpen,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Moon,
   Pause,
   Play,
   RotateCcw,
   SkipForward,
   SlidersHorizontal,
-  Sun,
 } from "lucide-react";
 import type {
   ChapterCurriculum,
@@ -37,18 +36,21 @@ interface TopGpsBarProps {
   gear: ViewGear;
   onChangeGear: (g: ViewGear) => void;
   grownCount: number;
-  theme: "dark" | "light";
-  onToggleTheme: () => void;
   onOpenSettings: () => void;
 }
 
 const PHASES: Array<{ id: string; label: string }> = [
-  { id: "compile", label: "Compile" },
-  { id: "superstep_plan", label: "Plan" },
-  { id: "superstep_execute", label: "Execute" },
-  { id: "superstep_apply_writes", label: "Apply" },
-  { id: "stream_or_interrupt", label: "Halt" },
+  { id: "compile", label: "编译建图" },
+  { id: "superstep_plan", label: "唤醒排期" },
+  { id: "superstep_execute", label: "并发执行" },
+  { id: "superstep_apply_writes", label: "屏障合入" },
+  { id: "stream_or_interrupt", label: "收敛停机" },
 ];
+
+function formatChapterBadge(num: string): string {
+  const n = num.replace(/[^0-9]/g, "");
+  return `第 ${Number(n) || 1} 关`;
+}
 
 export const TopGpsBar: React.FC<TopGpsBarProps> = ({
   meta,
@@ -68,8 +70,6 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
   gear,
   onChangeGear,
   grownCount,
-  theme,
-  onToggleTheme,
   onOpenSettings,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -85,8 +85,11 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const currentFrame = frames[Math.min(frameIndex, frames.length - 1)] ?? frames[0];
-  const hasInterrupt = Object.values(currentFrame.node_statuses).includes("interrupted");
+  const currentFrame =
+    frames[Math.min(frameIndex, frames.length - 1)] ?? frames[0];
+  const hasInterrupt = Object.values(currentFrame.node_statuses).includes(
+    "interrupted"
+  );
 
   const handleNextSuperstep = () => {
     const curStep = currentFrame.superstep;
@@ -104,11 +107,11 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
     switch (status) {
       case "planned":
       case "active":
-        return "var(--sig-blue)";
+        return "var(--ink-blue)";
       case "committed":
-        return "var(--sig-green)";
+        return "var(--ink-sage)";
       case "interrupted":
-        return "var(--sig-red)";
+        return "var(--ink-coral)";
       default:
         return "var(--ink-faint)";
     }
@@ -116,32 +119,15 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
 
   return (
     <>
-      {/* Tier 1: 44px Global Monochrome Shell Header */}
+      {/* Row 1: Warm Companion Navigation Bar */}
       <header className="shell-header" id="top-gps-bar">
         <div className="header-left" ref={menuRef}>
           <h1 className="brand-mark">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <rect
-                x="2"
-                y="2"
-                width="12"
-                height="12"
-                rx="3"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <circle cx="8" cy="8" r="2.2" fill="currentColor" />
-            </svg>
-            <span>LangGraph X-Ray</span>
+            <span className="brand-emblem" aria-hidden="true">
+              <BookOpen size={14} strokeWidth={2} />
+            </span>
+            <span>LangGraph 源码伴读</span>
           </h1>
-
-          <span className="crumb-sep">/</span>
 
           <button
             id="chapter-selector"
@@ -150,8 +136,8 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
             onClick={() => setMenuOpen((o) => !o)}
             aria-expanded={menuOpen}
           >
-            <span className="chapter-num-tag mono">
-              {activeChapter.number.replace("Ch.", "0")}
+            <span className="chapter-num-badge">
+              {formatChapterBadge(activeChapter.number)}
             </span>
             <span
               style={{
@@ -162,16 +148,16 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
             >
               {activeChapter.title}
             </span>
-            <ChevronDown size={13} strokeWidth={1.5} color="var(--ink-muted)" />
+            <ChevronDown size={14} strokeWidth={1.7} color="var(--ink-muted)" />
           </button>
 
           {menuOpen && (
             <div className="chapter-menu-popover" role="menu">
-              <div
-                className="eyebrow"
-                style={{ padding: "4px 10px 6px", borderBottom: "1px solid var(--hairline)" }}
-              >
-                Curriculum · 6 Kernel Probes
+              <div className="chapter-menu-header">
+                <span>共 6 关 · 循序渐进吃透内核</span>
+                <span className="mono" style={{ fontSize: 11, fontWeight: 400 }}>
+                  langgraph v{meta.langgraph_version}
+                </span>
               </div>
               <div style={{ paddingTop: 4 }}>
                 {chapters.map((ch, idx) => {
@@ -189,22 +175,23 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
                     >
                       <div style={{ display: "flex", gap: 10, minWidth: 0 }}>
                         <span
-                          className="mono"
+                          className="chapter-num-badge"
                           style={{
-                            fontSize: 11,
-                            color: "var(--ink-faint)",
-                            paddingTop: 1,
+                            height: 22,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            marginTop: 1,
                           }}
                         >
-                          0{idx + 1}
+                          第 {idx + 1} 关
                         </span>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 12.5, fontWeight: 500 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600 }}>
                             {ch.title}
                           </div>
                           <div
                             style={{
-                              fontSize: 11.5,
+                              fontSize: 11.8,
                               color: "var(--ink-muted)",
                               marginTop: 2,
                             }}
@@ -215,9 +202,9 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
                       </div>
                       {selected && (
                         <Check
-                          size={14}
-                          strokeWidth={1.6}
-                          color="var(--ink)"
+                          size={15}
+                          strokeWidth={2}
+                          color="var(--clay)"
                           style={{ flexShrink: 0, marginTop: 3 }}
                         />
                       )}
@@ -229,8 +216,8 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
           )}
         </div>
 
-        {/* Center: 3-Mode Segmented Switcher */}
-        <div className="seg-control" role="tablist" aria-label="视图模式切换">
+        {/* Center: Soft Capsule Switcher */}
+        <div className="seg-control" role="tablist" aria-label="学习模式切换">
           <button
             id="gear-workbench"
             type="button"
@@ -239,7 +226,7 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
             className={`seg-item ${gear === "workbench" ? "active" : ""}`}
             onClick={() => onChangeGear("workbench")}
           >
-            解剖台
+            伴读工作台
           </button>
           <button
             id="gear-canvas"
@@ -249,7 +236,7 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
             className={`seg-item ${gear === "canvas" ? "active" : ""}`}
             onClick={() => onChangeGear("canvas")}
           >
-            生长画布
+            思维生长画布
             <span className="count-pill mono">{grownCount}</span>
           </button>
           <button
@@ -260,18 +247,22 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
             className={`seg-item ${gear === "atlas" ? "active" : ""}`}
             onClick={() => onChangeGear("atlas")}
           >
-            全局星图
+            全局知识地图
           </button>
         </div>
 
-        {/* Right: Quiet Lens Toggles + Metadata + Icon Actions */}
+        {/* Right: Friendly Background Knowledge Strip + Settings */}
         <div className="header-right">
-          <div className="lens-strip" title="正交背景知识透镜（关闭后正文中扫盲标记完全隐形）">
+          <div
+            className="lens-strip"
+            title="按需开启背景小抄，点击正文虚线词即可原位展开解读；关闭后正文清爽无打扰"
+          >
+            <span className="lens-label">背景小抄：</span>
             {(
               [
-                ["python_syntax", "Py"],
-                ["pregel_paper", "Paper"],
-                ["runnable_contract", "Spec"],
+                ["python_syntax", "Python 语法"],
+                ["pregel_paper", "Pregel 论文"],
+                ["runnable_contract", "底层契约"],
               ] as Array<[KnowledgeLens, string]>
             ).map(([id, label]) => {
               const on = activeLenses.includes(id);
@@ -288,7 +279,7 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
                     style={{
                       width: 5,
                       height: 5,
-                      background: on ? "var(--ink)" : "var(--ink-faint)",
+                      background: on ? "var(--clay)" : "var(--ink-faint)",
                     }}
                   />
                   {label}
@@ -301,62 +292,38 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
                 type="button"
                 className="lens-chip"
                 onClick={onSetPureMode}
-                title="一键进入零标记老手纯净模式"
+                title="隐藏所有背景提示，进入清爽阅读模式"
               >
-                Pure
+                清爽阅读
               </button>
             )}
           </div>
-
-          <span className="v-divider" />
-
-          <span
-            className="mono"
-            style={{ fontSize: 11, color: "var(--ink-faint)", whiteSpace: "nowrap" }}
-            title="构建期挂载的官方 LangGraph 内核版本与固定 Commit"
-          >
-            {meta.langgraph_version}@{meta.vendor_commit}
-          </span>
-
-          <button
-            id="btn-theme-toggle"
-            type="button"
-            className="ghost-icon-btn"
-            onClick={onToggleTheme}
-            title="切换深浅主题"
-          >
-            {theme === "dark" ? (
-              <Sun size={14} strokeWidth={1.5} />
-            ) : (
-              <Moon size={14} strokeWidth={1.5} />
-            )}
-          </button>
 
           <button
             id="btn-engine-settings"
             type="button"
             className="ghost-icon-btn"
             onClick={onOpenSettings}
-            title="配置 Gemini API Key 与边缘后端"
+            title="AI 伴读连接与笔记导出设置"
           >
-            <SlidersHorizontal size={14} strokeWidth={1.5} />
+            <SlidersHorizontal size={15} strokeWidth={1.7} />
           </button>
         </div>
       </header>
 
-      {/* Tier 2: 38px Replay.io-Style Deterministic Execution Timeline Bar (Workbench only) */}
+      {/* Row 2: Tactile Floating Step-by-Step Companion Bar */}
       {gear === "workbench" && (
-        <div className="timeline-bar" role="region" aria-label="超步时间轴控制器">
+        <div className="timeline-bar" role="region" aria-label="单步执行伴读进度条">
           <div className="transport-group">
             <button
               id="sandbox-reset"
               type="button"
               className="ghost-icon-btn"
-              style={{ width: 26, height: 26 }}
+              style={{ width: 28, height: 28 }}
               onClick={() => onChangeFrameIndex(0)}
-              title="回到编译初始帧"
+              title="回到第 1 幕（建图起点）"
             >
-              <RotateCcw size={13} strokeWidth={1.5} />
+              <RotateCcw size={13} strokeWidth={1.7} />
             </button>
             <button
               id="sandbox-prev"
@@ -364,9 +331,10 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
               className="subtle-btn"
               disabled={frameIndex <= 0}
               onClick={() => onChangeFrameIndex(Math.max(0, frameIndex - 1))}
-              title="上一半步"
+              title="退回上一步"
             >
-              <ChevronLeft size={13} strokeWidth={1.6} />
+              <ChevronLeft size={14} strokeWidth={1.7} />
+              上一步
             </button>
             <button
               id="sandbox-next"
@@ -377,8 +345,8 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
                 onChangeFrameIndex(Math.min(frames.length - 1, frameIndex + 1))
               }
             >
-              Next Phase
-              <ChevronRight size={13} strokeWidth={1.8} />
+              下一步
+              <ChevronRight size={14} strokeWidth={2} />
             </button>
             <button
               id="sandbox-next-superstep"
@@ -386,22 +354,23 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
               className="subtle-btn"
               disabled={frameIndex >= frames.length - 1}
               onClick={handleNextSuperstep}
-              title="跳至下一完整 Superstep"
+              title="直接跳到下一轮超步（Superstep）"
             >
-              <SkipForward size={12} strokeWidth={1.5} />
+              <SkipForward size={12} strokeWidth={1.6} />
+              下一轮
             </button>
             <button
               id="sandbox-autoplay"
               type="button"
               className="ghost-icon-btn"
-              style={{ width: 26, height: 26 }}
+              style={{ width: 28, height: 28 }}
               onClick={onToggleAutoPlay}
-              title={isAutoPlaying ? "暂停自动步进" : "自动连续步进"}
+              title={isAutoPlaying ? "暂停自动播放" : "自动一步步演示"}
             >
               {isAutoPlaying ? (
-                <Pause size={13} strokeWidth={1.5} />
+                <Pause size={13} strokeWidth={1.7} />
               ) : (
-                <Play size={13} strokeWidth={1.5} />
+                <Play size={13} strokeWidth={1.7} />
               )}
             </button>
 
@@ -412,33 +381,37 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
                 gap: 3,
                 marginLeft: 4,
               }}
-              title="支持键盘左右方向键单步调试"
+              title="按键盘左右方向键也能前后翻步"
             >
               <kbd className="kbd mono">←</kbd>
               <kbd className="kbd mono">→</kbd>
             </span>
 
             <span
-              className="mono"
-              style={{ fontSize: 11, color: "var(--ink-muted)", marginLeft: 6 }}
+              style={{
+                fontSize: 12,
+                color: "var(--ink-muted)",
+                marginLeft: 6,
+                whiteSpace: "nowrap",
+              }}
             >
-              {String(frameIndex + 1).padStart(2, "0")}/
-              {String(frames.length).padStart(2, "0")}
+              第 <strong style={{ color: "var(--ink)" }}>{frameIndex + 1}</strong> /{" "}
+              {frames.length} 幕
             </span>
           </div>
 
-          {/* Center: Lifecycle Stage Breadcrumbs + Discrete Frame Tick Track */}
+          {/* Center: Friendly Chinese Stage Pills + Capsule Progress Ticks */}
           <div className="scrubber-center">
             <div className="phase-crumbs">
               {PHASES.map((p) => {
                 const isCur = currentFrame.lifecycle_phase === p.id;
                 const dotCol =
                   isCur && hasInterrupt
-                    ? "var(--sig-red)"
+                    ? "var(--ink-coral)"
                     : isCur && p.id === "superstep_apply_writes"
-                      ? "var(--sig-green)"
+                      ? "var(--ink-sage)"
                       : isCur
-                        ? "var(--sig-blue)"
+                        ? "var(--clay)"
                         : "transparent";
                 return (
                   <button
@@ -446,19 +419,28 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
                     type="button"
                     className={`phase-step-btn ${isCur ? "current" : ""}`}
                     onClick={() => onJumpToPhase(p.id)}
-                    title={`跳转至下一 ${p.label} 阶段帧`}
+                    title={`跳到「${p.label}」环节`}
                   >
-                    {isCur && <span className="dot" style={{ background: dotCol }} />}
+                    {isCur && (
+                      <span className="dot" style={{ background: dotCol }} />
+                    )}
                     {p.label}
                   </button>
                 );
               })}
             </div>
 
-            <div className="tick-track" role="slider" aria-valuenow={frameIndex + 1}>
+            <div
+              className="tick-track"
+              role="slider"
+              aria-valuenow={frameIndex + 1}
+            >
               {frames.map((f, idx) => {
-                const isIntr = Object.values(f.node_statuses).includes("interrupted");
-                const isBarrier = f.lifecycle_phase === "superstep_apply_writes";
+                const isIntr = Object.values(f.node_statuses).includes(
+                  "interrupted"
+                );
+                const isBarrier =
+                  f.lifecycle_phase === "superstep_apply_writes";
                 let cls = "frame-tick";
                 if (idx === frameIndex) cls += " active";
                 else if (isIntr) cls += " interrupt";
@@ -471,14 +453,14 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
                     type="button"
                     className={cls}
                     onClick={() => onChangeFrameIndex(idx)}
-                    title={`#${idx + 1} · ${f.phase_label ?? f.lifecycle_phase}`}
+                    title={`第 ${idx + 1} 幕 · ${f.phase_label ?? f.lifecycle_phase}`}
                   />
                 );
               })}
             </div>
           </div>
 
-          {/* Right: Minimalist Node Status Dots */}
+          {/* Right: Node Activity Pills */}
           <div className="topology-strip">
             {radarNodes.map((n) => {
               const st = currentFrame.node_statuses[n];
@@ -487,9 +469,12 @@ export const TopGpsBar: React.FC<TopGpsBarProps> = ({
                 <span
                   key={n}
                   className={`topo-node-tag mono ${lit ? "lit" : ""}`}
-                  title={`${n}: ${st ?? "idle"}`}
+                  title={`节点 ${n} 当前状态：${st ?? "待命"}`}
                 >
-                  <span className="dot" style={{ background: nodeDotColor(st) }} />
+                  <span
+                    className="dot"
+                    style={{ background: nodeDotColor(st) }}
+                  />
                   {n}
                 </span>
               );

@@ -40,7 +40,9 @@ const GlobalAtlasView = lazy(() =>
   }))
 );
 
-function pickSignatureFrame(frames: Array<{ superstep: number; lifecycle_phase: string }>): number {
+function pickSignatureFrame(
+  frames: Array<{ superstep: number; lifecycle_phase: string }>
+): number {
   const midPlan = frames.findIndex(
     (f) => f.superstep >= 2 && f.lifecycle_phase === "superstep_plan"
   );
@@ -64,9 +66,6 @@ export const App: React.FC = () => {
     return g === "canvas" || g === "atlas" ? g : "workbench";
   });
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("L2");
-  const [theme, setTheme] = useState<"dark" | "light">(() =>
-    initialParams.get("theme") === "light" ? "light" : "dark"
-  );
   const [activeLenses, setActiveLenses] = useState<KnowledgeLens[]>(() =>
     loadActiveLenses()
   );
@@ -112,10 +111,6 @@ export const App: React.FC = () => {
     void loadPersonalGraph().then(setPersonalGraph);
   }, []);
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
-
   const handleSelectChapter = useCallback((cid: string) => {
     const nextCh =
       KERNEL_BUNDLE.chapters.find((c) => c.chapter_id === cid) ??
@@ -159,7 +154,8 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [frames.length, gear]);
 
-  const currentFrame = frames[Math.min(frameIndex, frames.length - 1)] ?? frames[0];
+  const currentFrame =
+    frames[Math.min(frameIndex, frames.length - 1)] ?? frames[0];
 
   const handleJumpToPhase = useCallback(
     (phaseId: string) => {
@@ -188,12 +184,17 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  const handleInspectSymbol = useCallback((symId: string, provenance?: string) => {
-    if (!KERNEL_BUNDLE.symbols[symId]) return;
-    setActiveSymbolId(symId);
-    setSymbolProvenance(provenance ?? "");
-    setPinnedSymbolIds((prev) => (prev.includes(symId) ? prev : [...prev, symId]));
-  }, []);
+  const handleInspectSymbol = useCallback(
+    (symId: string, provenance?: string) => {
+      if (!KERNEL_BUNDLE.symbols[symId]) return;
+      setActiveSymbolId(symId);
+      setSymbolProvenance(provenance ?? "");
+      setPinnedSymbolIds((prev) =>
+        prev.includes(symId) ? prev : [...prev, symId]
+      );
+    },
+    []
+  );
 
   const handleTogglePinSymbol = useCallback((symId: string) => {
     setPinnedSymbolIds((prev) => {
@@ -276,7 +277,9 @@ export const App: React.FC = () => {
               source: newNodeId,
               target: cid,
               relation:
-                card.node_kind === "theory" ? "grounds_in_theory" : "uses_syntax",
+                card.node_kind === "theory"
+                  ? "grounds_in_theory"
+                  : "uses_syntax",
               style: "dashed",
             });
           }
@@ -308,7 +311,8 @@ export const App: React.FC = () => {
       setGear("canvas");
       const spineId =
         KERNEL_BUNDLE.public_graph.nodes.find(
-          (n) => n.chapter_id === activeChapter.chapter_id && n.kind === "spine"
+          (n) =>
+            n.chapter_id === activeChapter.chapter_id && n.kind === "spine"
         )?.id ?? `spine_${activeChapter.chapter_id}`;
 
       const autoQ =
@@ -379,8 +383,8 @@ export const App: React.FC = () => {
   }, [activeChapter.chapter_id, personalGraph.nodes]);
 
   const totalGrownCount =
-    KERNEL_BUNDLE.public_graph.nodes.filter((n) => n.kind === "insight").length +
-    personalGraph.nodes.length;
+    KERNEL_BUNDLE.public_graph.nodes.filter((n) => n.kind === "insight")
+      .length + personalGraph.nodes.length;
 
   return (
     <div className="xray-shell">
@@ -405,8 +409,6 @@ export const App: React.FC = () => {
         gear={gear}
         onChangeGear={setGear}
         grownCount={totalGrownCount}
-        theme={theme}
-        onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
@@ -461,10 +463,10 @@ export const App: React.FC = () => {
               alignItems: "center",
               justifyContent: "center",
               color: "var(--ink-muted)",
-              fontSize: 12,
+              fontSize: 13,
             }}
           >
-            Computing DAG layout...
+            正在为你铺开知识卡片…
           </div>
         }
       >
@@ -484,7 +486,7 @@ export const App: React.FC = () => {
             onEndorseNode={handleEndorseNode}
             onClearPersonalChapterBranches={handleClearPersonalChapterBranches}
             onPinSymbolAndReturn={(symId) => {
-              handleInspectSymbol(symId, "Pinned from Semantic Canvas");
+              handleInspectSymbol(symId, "从思维生长画布固定到手边");
               setGear("workbench");
             }}
             onBackToWorkbench={() => setGear("workbench")}
@@ -502,7 +504,7 @@ export const App: React.FC = () => {
             onTeleportToChapter={(cid, symId) => {
               handleSelectChapter(cid);
               if (symId) {
-                handleInspectSymbol(symId, "Selected from Global Atlas");
+                handleInspectSymbol(symId, "从全局知识地图跳转定位");
               }
               setGear("workbench");
             }}

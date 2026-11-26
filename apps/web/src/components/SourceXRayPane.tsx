@@ -85,7 +85,8 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
   onSproutFromCode,
 }) => {
   const activeSlice =
-    availableSlices.find((s) => s.slice_id === activeSliceId) ?? availableSlices[0];
+    availableSlices.find((s) => s.slice_id === activeSliceId) ??
+    availableSlices[0];
 
   const [unfoldedKeys, setUnfoldedKeys] = useState<Record<string, boolean>>({});
   const [hoveredVar, setHoveredVar] = useState<{
@@ -123,7 +124,10 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
     const container = codeViewportRef.current;
     const row = firstHighlightRowRef.current;
     if (container && row && (zoomLevel === "L2" || zoomLevel === "L3")) {
-      const targetTop = Math.max(0, row.offsetTop - container.clientHeight * 0.22);
+      const targetTop = Math.max(
+        0,
+        row.offsetTop - container.clientHeight * 0.22
+      );
       container.scrollTo({ top: targetTop, behavior: "auto" });
     }
   }, [currentFrame.frame_id, activeSliceId, zoomLevel]);
@@ -155,7 +159,8 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
       const key = `${lineNumber}_${col}`;
 
       if (semLink) {
-        const shortSym = semLink.target_symbol.split(".").pop() ?? semLink.target_symbol;
+        const shortSym =
+          semLink.target_symbol.split(".").pop() ?? semLink.target_symbol;
         const memField = HOVER_MEMORY_KEYS[tok];
         segments.push(
           <span
@@ -164,15 +169,15 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
             style={{ color: semLink.inferred_local ? undefined : "var(--syn-fn)" }}
             title={
               semLink.inferred_local
-                ? `${tok} → ${shortSym} (Jedi inferred)`
-                : `${tok} · Static Blueprint`
+                ? `点击查看变量 ${tok} 对应的 ${shortSym} 结构`
+                : `点击在手边查看 ${tok} 的字段说明`
             }
             onClick={() =>
               onInspectSymbol(
                 semLink.target_symbol,
                 semLink.inferred_local
-                  ? `${tok} → ${shortSym} · ${block.file_path.split("/").pop()}:${lineNumber}`
-                  : `${tok} · ${block.file_path.split("/").pop()}:${lineNumber}`
+                  ? `局部变量 ${tok} → ${shortSym}（${block.file_path.split("/").pop()}:${lineNumber}）`
+                  : `${tok}（${block.file_path.split("/").pop()}:${lineNumber}）`
               )
             }
             onMouseEnter={(e) => {
@@ -196,7 +201,7 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
         );
       } else if (PY_KEYWORDS.has(tok)) {
         segments.push(
-          <span key={key} style={{ color: "var(--syn-kw)" }}>
+          <span key={key} style={{ color: "var(--syn-kw)", fontWeight: 500 }}>
             {tok}
           </span>
         );
@@ -213,7 +218,7 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
 
     if (commentPart) {
       segments.push(
-        <span key="cmt" style={{ color: "var(--syn-cmt)" }}>
+        <span key="cmt" style={{ color: "var(--syn-cmt)", fontStyle: "italic" }}>
           {commentPart}
         </span>
       );
@@ -241,10 +246,12 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
               key={`fold_${foldKey}`}
               className="zed-fold-pill"
               onClick={() => toggleFold(foldKey)}
-              title="点击展开折叠的工程胶水代码"
+              title="点击展开查看这部分辅助代码"
             >
-              <ChevronRight size={12} strokeWidth={1.6} />
-              <span>{fold.summary_label}</span>
+              <ChevronRight size={13} strokeWidth={1.7} color="var(--clay)" />
+              <span>
+                {fold.summary_label.replace(/^已折叠\s*/, "已为你收起 ")}
+              </span>
             </div>
           );
           idx += Math.max(1, fold.end_line - fold.start_line + 1);
@@ -275,9 +282,8 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
   };
 
   return (
-    <section className="pane-col" aria-label="真实内核源码视窗">
-      {/* Unified 36px Zed-Style Editor Tab + Zoom Bar */}
-      <div className="col-bar" style={{ paddingLeft: 6 }}>
+    <section className="pane-col" aria-label="内核源码透视镜">
+      <div className="col-bar" style={{ paddingLeft: 10, paddingRight: 10 }}>
         <div className="editor-tabs" role="tablist">
           {availableSlices.map((sl) => (
             <button
@@ -296,13 +302,13 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
           ))}
         </div>
 
-        <div className="seg-control" style={{ height: 24 }} role="tablist">
+        <div className="seg-control" style={{ height: 28 }} role="tablist">
           {(
             [
-              ["L0", "L0"],
-              ["L1", "L1"],
-              ["L2", "L2"],
-              ["L3", "L3"],
+              ["L0", "示例全景"],
+              ["L1", "算法骨架"],
+              ["L2", "精简源码"],
+              ["L3", "完整源码"],
             ] as Array<[ZoomLevel, string]>
           ).map(([lvl, label]) => (
             <button
@@ -311,15 +317,15 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
               type="button"
               title={
                 lvl === "L0"
-                  ? "L0 业务探针与前后 State Diff"
+                  ? "先看业务层小例子与前后输入输出对比"
                   : lvl === "L1"
-                    ? "L1 纯净核心算法骨架"
+                    ? "只看最纯粹的核心算法伪代码主干"
                     : lvl === "L2"
-                      ? "L2 真实源码 + 工程胶水自动折叠 (推荐)"
-                      : "L3 100% 全量源码 + 变量悬停内存显微镜"
+                      ? "真实官方源码 + 自动收起日志和兼容分支（推荐阅读）"
+                      : "展开 100% 原始代码，鼠标悬停变量还能偷看此刻内存真值"
               }
-              className={`seg-item mono ${zoomLevel === lvl ? "active" : ""}`}
-              style={{ height: 18, padding: "0 7px", fontSize: 11 }}
+              className={`seg-item ${zoomLevel === lvl ? "active" : ""}`}
+              style={{ height: 22, padding: "0 9px", fontSize: 11.5 }}
               onClick={() => onChangeZoom(lvl)}
             >
               {label}
@@ -329,21 +335,24 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
       </div>
 
       {zoomLevel === "L0" ? (
-        <div className="pane-scroll" style={{ background: "var(--bg-code)", padding: 20 }}>
+        <div
+          className="pane-scroll"
+          style={{ background: "var(--bg-code)", padding: 20 }}
+        >
           <div className="eyebrow" style={{ marginBottom: 8 }}>
-            L0 · DETERMINISTIC PROBE GRAPH
+            本关最小可运行示例（业务层图定义）
           </div>
           <pre
             className="mono"
             style={{
-              margin: "0 0 20px",
+              margin: "0 0 18px",
               padding: "14px 16px",
-              borderRadius: 8,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--hairline)",
+              borderRadius: 10,
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-soft)",
               overflowX: "auto",
               fontSize: 12,
-              lineHeight: 1.65,
+              lineHeight: 1.68,
               color: "var(--ink)",
             }}
           >
@@ -360,20 +369,20 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
             <div
               style={{
                 padding: "12px 14px",
-                borderRadius: 8,
-                background: "var(--bg-panel)",
-                border: "1px solid var(--hairline)",
+                borderRadius: 10,
+                background: "var(--bg-card)",
+                border: "1px solid var(--border-soft)",
               }}
             >
               <div className="eyebrow" style={{ marginBottom: 6 }}>
-                INPUT STATE
+                初始输入状态
               </div>
               <pre
                 className="mono"
                 style={{
                   margin: 0,
                   fontSize: 11.5,
-                  color: "var(--ink-secondary)",
+                  color: "var(--ink-body)",
                   overflowX: "auto",
                 }}
               >
@@ -383,16 +392,16 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
             <div
               style={{
                 padding: "12px 14px",
-                borderRadius: 8,
-                background: "var(--bg-panel)",
-                border: "1px solid var(--hairline-strong)",
+                borderRadius: 10,
+                background: "var(--bg-card)",
+                border: "1px solid var(--border-medium)",
               }}
             >
               <div
                 className="eyebrow"
-                style={{ marginBottom: 6, color: "var(--sig-green)" }}
+                style={{ marginBottom: 6, color: "var(--ink-sage)" }}
               >
-                CONVERGED OUTPUT
+                运行收敛后的最终状态
               </div>
               <pre
                 className="mono"
@@ -409,20 +418,23 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
           </div>
         </div>
       ) : zoomLevel === "L1" ? (
-        <div className="pane-scroll" style={{ background: "var(--bg-code)", padding: 20 }}>
+        <div
+          className="pane-scroll"
+          style={{ background: "var(--bg-code)", padding: 20 }}
+        >
           <div className="eyebrow" style={{ marginBottom: 8 }}>
-            L1 · DISTILLED ALGORITHMIC SKELETON
+            抽丝剥茧后的算法主干（先抓主线，不被工程细节绊住）
           </div>
           <pre
             className="mono"
             style={{
               margin: 0,
               padding: "16px 18px",
-              borderRadius: 8,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--hairline)",
+              borderRadius: 10,
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-soft)",
               fontSize: 12.2,
-              lineHeight: 1.72,
+              lineHeight: 1.75,
               color: "var(--ink)",
               overflowX: "auto",
             }}
@@ -439,8 +451,8 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
             const sel = window.getSelection()?.toString().trim() ?? "";
             if (sel.length >= 3 && sel.length <= 320) {
               setCodeSelection({
-                x: Math.min(window.innerWidth - 220, Math.max(20, e.clientX - 50)),
-                y: Math.max(54, e.clientY - 40),
+                x: Math.min(window.innerWidth - 230, Math.max(20, e.clientX - 50)),
+                y: Math.max(58, e.clientY - 42),
                 text: sel,
                 fileRef: activeSlice.primary_file,
               });
@@ -452,26 +464,27 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
           {zoomLevel === "L3" && (
             <div
               style={{
-                padding: "4px 16px 8px",
-                borderBottom: "1px solid var(--hairline)",
+                padding: "5px 16px 9px",
+                borderBottom: "1px solid var(--border-soft)",
                 marginBottom: 4,
-                fontSize: 11,
+                fontFamily: "var(--font-sans)",
+                fontSize: 11.8,
                 color: "var(--ink-muted)",
               }}
             >
-              L3 Unfolded · 悬停源码中的变量标识符可实时检视当前超步内存快照
+              完整源码模式 · 把鼠标停在源码里的变量名上，可以直接偷看此刻的内存真值
             </div>
           )}
 
           {activeSlice.blocks.map((block) => (
             <div key={block.qualname}>
               <div className="symbol-scope-header mono">
-                <span style={{ color: "var(--ink)", fontWeight: 500 }}>
+                <span style={{ color: "var(--ink)", fontWeight: 600 }}>
                   {block.qualname}
                 </span>
                 <span style={{ color: "var(--ink-faint)" }}>
-                  {block.file_path.replace("libs/langgraph/", "")}:{block.start_line}–
-                  {block.end_line}
+                  {block.file_path.replace("libs/langgraph/", "")}:
+                  {block.start_line}–{block.end_line}
                 </span>
               </div>
               {renderBlockLines(block)}
@@ -490,17 +503,20 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
             width: 300,
             maxHeight: 210,
             overflow: "auto",
-            background: "var(--bg-popover)",
-            borderRadius: 8,
-            padding: "10px 12px",
+            background: "var(--bg-card)",
+            borderRadius: 12,
+            padding: "11px 14px",
             boxShadow: "var(--shadow-popover)",
             pointerEvents: "none",
           }}
         >
           <div className="eyebrow" style={{ marginBottom: 6 }}>
-            LIVE MEMORY · {hoveredVar.name}
+            此刻内存真值 · {hoveredVar.name}
           </div>
-          <pre className="mono" style={{ margin: 0, fontSize: 11, color: "var(--ink)" }}>
+          <pre
+            className="mono"
+            style={{ margin: 0, fontSize: 11.2, color: "var(--ink)" }}
+          >
             {hoveredVar.valueJson}
           </pre>
         </div>
@@ -521,7 +537,7 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
               onSproutFromCode(text, fileRef);
             }}
           >
-            锚定代码推入画布追问 ↗
+            带着这段源码去画布追问 ↗
           </button>
         </div>
       )}

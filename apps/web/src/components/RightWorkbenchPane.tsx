@@ -25,7 +25,9 @@ export const RightWorkbenchPane: React.FC<RightWorkbenchPaneProps> = ({
   frameIndex,
   topologyNodes,
 }) => {
-  const [trayMode, setTrayMode] = useState<"contract" | "fusion" | "raw">("fusion");
+  const [trayMode, setTrayMode] = useState<"contract" | "fusion" | "raw">(
+    "fusion"
+  );
   const [sandboxTab, setSandboxTab] = useState<
     "matrix" | "channels" | "tasks" | "scratchpad"
   >("matrix");
@@ -72,522 +74,558 @@ export const RightWorkbenchPane: React.FC<RightWorkbenchPaneProps> = ({
   }
 
   return (
-    <aside className="pane-col" aria-label="静态契约托盘与超步内存检查器">
-      <div className="inspector-split">
-        {/* ================================================================
-            UPPER HALF: STATIC SYMBOL BLUEPRINT TRAY (Raycast / Linear Style)
-            ================================================================ */}
-        <div className="blueprint-pane">
-          <div className="col-bar" style={{ paddingLeft: 8, paddingRight: 8 }}>
-            <div className="editor-tabs" style={{ flex: 1 }}>
-              {pinnedSymbolIds.map((sid) => {
-                const s = symbols[sid];
-                if (!s) return null;
-                const selected = sid === activeSymbol.symbol_id;
-                const shortName =
-                  s.name === "PregelExecutableTask"
-                    ? "ExecutableTask"
+    <aside className="inspector-col" aria-label="手边结构卡与超步运行现场">
+      {/* ================================================================
+          TOP CARD: AT-HAND OBJECT BLUEPRINT CARD (手边结构卡)
+          ================================================================ */}
+      <div className="blueprint-card">
+        <div className="col-bar" style={{ paddingLeft: 12, paddingRight: 10 }}>
+          <div className="editor-tabs" style={{ flex: 1 }}>
+            {pinnedSymbolIds.map((sid) => {
+              const s = symbols[sid];
+              if (!s) return null;
+              const selected = sid === activeSymbol.symbol_id;
+              const shortName =
+                s.name === "PregelExecutableTask"
+                  ? "ExecTask"
+                  : s.name === "NamedBarrierValue"
+                    ? "BarrierValue"
                     : s.name === "BinaryOperatorAggregate"
-                      ? "BinOpAggregate"
+                      ? "BinOpAgg"
                       : s.name;
-                return (
-                  <button
-                    key={sid}
-                    type="button"
-                    onClick={() => onSelectSymbol(sid)}
-                    className={`editor-tab mono ${selected ? "active" : ""}`}
-                    style={{ padding: "0 8px", fontSize: 11.3 }}
-                    title={s.name}
-                  >
-                    {shortName}
-                  </button>
-                );
-              })}
-            </div>
+              return (
+                <button
+                  key={sid}
+                  type="button"
+                  onClick={() => onSelectSymbol(sid)}
+                  className={`editor-tab mono ${selected ? "active" : ""}`}
+                  style={{ padding: "0 8px", fontSize: 11.2 }}
+                  title={`查看 ${s.name} 的结构说明`}
+                >
+                  {shortName}
+                </button>
+              );
+            })}
+          </div>
 
-            <div ref={pickerRef} style={{ position: "relative", flexShrink: 0 }}>
-              <button
-                type="button"
-                className="ghost-icon-btn"
-                style={{ width: 24, height: 24 }}
-                onClick={() => setPickerOpen((o) => !o)}
-                title="浏览或钉住其他内核符号定义"
+          <div ref={pickerRef} style={{ position: "relative", flexShrink: 0 }}>
+            <button
+              type="button"
+              className="ghost-icon-btn"
+              style={{ width: 26, height: 26 }}
+              onClick={() => setPickerOpen((o) => !o)}
+              title="挑选其他内核对象放到手边对照"
+            >
+              <Plus size={14} strokeWidth={1.8} />
+            </button>
+
+            {pickerOpen && (
+              <div
+                style={{
+                  position: "fixed",
+                  right: 16,
+                  top: 145,
+                  width: 278,
+                  maxHeight: 330,
+                  overflowY: "auto",
+                  background: "var(--bg-card)",
+                  borderRadius: 14,
+                  padding: 6,
+                  boxShadow: "var(--shadow-popover)",
+                  zIndex: 95,
+                }}
               >
-                <Plus size={13} strokeWidth={1.6} />
-              </button>
-
-              {pickerOpen && (
                 <div
+                  className="eyebrow"
                   style={{
-                    position: "fixed",
-                    right: 14,
-                    top: 122,
-                    width: 270,
-                    maxHeight: 320,
-                    overflowY: "auto",
-                    background: "var(--bg-popover)",
-                    borderRadius: 10,
-                    padding: 5,
-                    boxShadow: "var(--shadow-popover)",
-                    zIndex: 95,
+                    padding: "6px 10px 8px",
+                    borderBottom: "1px solid var(--border-soft)",
                   }}
                 >
-                  <div
-                    className="eyebrow"
-                    style={{
-                      padding: "4px 8px 6px",
-                      borderBottom: "1px solid var(--hairline)",
-                    }}
-                  >
-                    19 Kernel Symbols
-                  </div>
-                  {Object.values(symbols).map((sym) => {
-                    const pinned = pinnedSymbolIds.includes(sym.symbol_id);
-                    return (
-                      <button
-                        key={sym.symbol_id}
-                        type="button"
-                        className="chapter-menu-item"
-                        style={{ padding: "6px 8px", alignItems: "center" }}
-                        onClick={() => {
-                          onSelectSymbol(sym.symbol_id);
-                          if (!pinned) onTogglePinSymbol(sym.symbol_id);
-                          setPickerOpen(false);
-                        }}
-                      >
-                        <span className="mono" style={{ fontSize: 11.5 }}>
-                          {sym.name}
-                          <span
-                            style={{
-                              color: "var(--ink-faint)",
-                              marginLeft: 6,
-                              fontSize: 10.5,
-                            }}
-                          >
-                            {sym.kind}
-                          </span>
-                        </span>
-                        {pinned && (
-                          <Check size={12} strokeWidth={1.6} color="var(--ink-muted)" />
-                        )}
-                      </button>
-                    );
-                  })}
+                  全部 19 个核心结构卡
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Subheader Metadata Row + Mode Switcher */}
-          <div
-            style={{
-              padding: "5px 12px 5px 14px",
-              borderBottom: "1px solid var(--hairline)",
-              background: "var(--bg-canvas)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-            }}
-          >
-            <div
-              className="mono"
-              style={{
-                fontSize: 11,
-                color: "var(--ink-muted)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span style={{ color: "var(--ink-faint)", marginRight: 5 }}>
-                {activeSymbol.kind}
-              </span>
-              <span style={{ color: "var(--ink)", fontWeight: 500 }}>
-                {activeSymbol.name}
-              </span>
-              <span style={{ color: "var(--ink-faint)", marginLeft: 6 }}>
-                :{activeSymbol.defined_in.start_line}
-              </span>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-              <div className="seg-control" style={{ height: 22 }}>
-                {(
-                  [
-                    ["contract", "Struct"],
-                    ["fusion", "Live"],
-                    ["raw", "Code"],
-                  ] as const
-                ).map(([m, label]) => (
-                  <button
-                    key={m}
-                    type="button"
-                    className={`seg-item ${trayMode === m ? "active" : ""}`}
-                    style={{ height: 16, padding: "0 6px", fontSize: 10.5 }}
-                    onClick={() => setTrayMode(m)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onTogglePinSymbol(activeSymbol.symbol_id)}
-                title={isPinned ? "从托盘取消固定" : "固定在手边标签栏"}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  color: isPinned ? "var(--ink)" : "var(--ink-faint)",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                }}
-              >
-                <Pin size={12} strokeWidth={1.5} />
-              </button>
-            </div>
-          </div>
-
-          {symbolProvenance && (
-            <div
-              className="mono"
-              style={{
-                padding: "4px 14px",
-                borderBottom: "1px solid var(--hairline)",
-                fontSize: 10.5,
-                color: "var(--sig-blue)",
-                background: "var(--sig-blue-tint)",
-              }}
-            >
-              {symbolProvenance}
-            </div>
-          )}
-
-          {/* Hairline Property Inspector Body */}
-          <div className="pane-scroll">
-            {trayMode === "raw" ? (
-              <pre
-                className="mono"
-                style={{
-                  margin: 0,
-                  padding: "12px 14px",
-                  background: "var(--bg-code)",
-                  fontSize: 11.2,
-                  lineHeight: 1.6,
-                  color: "var(--ink-secondary)",
-                  overflowX: "auto",
-                }}
-              >
-                {activeSymbol.raw_excerpt}
-              </pre>
-            ) : (
-              <>
-                {activeSymbol.fields.map((f) => (
-                  <div key={f.name} className="kv-row">
-                    <div className="kv-top">
-                      <span className="kv-sig mono">{f.name}</span>
-                      {trayMode === "fusion" && (
+                {Object.values(symbols).map((sym) => {
+                  const pinned = pinnedSymbolIds.includes(sym.symbol_id);
+                  return (
+                    <button
+                      key={sym.symbol_id}
+                      type="button"
+                      className="chapter-menu-item"
+                      style={{ padding: "7px 10px", alignItems: "center" }}
+                      onClick={() => {
+                        onSelectSymbol(sym.symbol_id);
+                        if (!pinned) onTogglePinSymbol(sym.symbol_id);
+                        setPickerOpen(false);
+                      }}
+                    >
+                      <span className="mono" style={{ fontSize: 11.6 }}>
+                        {sym.name}
                         <span
-                          className="kv-live-val mono"
-                          title={formatLiveBinding(f.live_key)}
+                          style={{
+                            color: "var(--ink-faint)",
+                            marginLeft: 6,
+                            fontSize: 10.5,
+                          }}
                         >
-                          {formatLiveBinding(f.live_key)}
+                          {sym.kind}
                         </span>
+                      </span>
+                      {pinned && (
+                        <Check
+                          size={13}
+                          strokeWidth={1.8}
+                          color="var(--clay)"
+                        />
                       )}
-                    </div>
-                    <div className="kv-desc">{f.duty_cn}</div>
-                  </div>
-                ))}
-
-                {activeSymbol.subclasses_summary &&
-                  activeSymbol.subclasses_summary.length > 0 && (
-                    <div>
-                      <div
-                        className="eyebrow"
-                        style={{
-                          padding: "10px 14px 6px",
-                          borderBottom: "1px solid var(--hairline)",
-                        }}
-                      >
-                        Polymorphic Subclasses
-                      </div>
-                      {activeSymbol.subclasses_summary.map((sub) => (
-                        <div key={sub.name} className="kv-row">
-                          <div className="kv-sig mono">{sub.name}</div>
-                          <div className="kv-desc">{sub.behavior_diff_cn}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-              </>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
 
-        {/* ================================================================
-            LOWER HALF: PREGEL RUNTIME STATE INSPECTOR
-            ================================================================ */}
-        <div className="runtime-pane">
-          <div className="col-bar" style={{ paddingLeft: 8 }}>
-            <div className="editor-tabs">
+        {/* Subheader: Object Identity + Friendly Switcher */}
+        <div
+          style={{
+            padding: "6px 14px",
+            borderBottom: "1px solid var(--border-soft)",
+            background: "var(--bg-subtle)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11.5,
+              color: "var(--ink-muted)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span style={{ marginRight: 6 }}>手边结构：</span>
+            <span
+              className="mono"
+              style={{ color: "var(--ink)", fontWeight: 600 }}
+            >
+              {activeSymbol.name}
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexShrink: 0,
+            }}
+          >
+            <div className="seg-control" style={{ height: 24, padding: 2 }}>
               {(
                 [
-                  ["matrix", "Versions"],
-                  ["channels", "Channels"],
-                  ["tasks", "Tasks"],
-                  ["scratchpad", "Scratchpad"],
+                  ["contract", "字段说明"],
+                  ["fusion", "实时对照"],
+                  ["raw", "源码定义"],
                 ] as const
-              ).map(([id, label]) => (
+              ).map(([m, label]) => (
                 <button
-                  key={id}
+                  key={m}
                   type="button"
-                  className={`editor-tab ${sandboxTab === id ? "active" : ""}`}
-                  style={{ padding: "0 8px", fontSize: 11.8 }}
-                  onClick={() => setSandboxTab(id)}
+                  className={`seg-item ${trayMode === m ? "active" : ""}`}
+                  style={{ height: 20, padding: "0 8px", fontSize: 11 }}
+                  onClick={() => setTrayMode(m)}
                 >
                   {label}
                 </button>
               ))}
             </div>
 
-            <span
-              className="mono"
+            <button
+              type="button"
+              onClick={() => onTogglePinSymbol(activeSymbol.symbol_id)}
+              title={isPinned ? "从手边栏收起" : "固定在手边栏"}
               style={{
-                fontSize: 10.5,
-                color: "var(--ink-muted)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: 135,
+                border: "none",
+                background: "transparent",
+                padding: 2,
+                color: isPinned ? "var(--clay)" : "var(--ink-faint)",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
               }}
-              title={currentFrame.phase_label}
             >
-              Step {currentFrame.superstep}
-            </span>
+              <Pin size={13} strokeWidth={1.7} />
+            </button>
           </div>
+        </div>
 
+        {symbolProvenance && (
           <div
             style={{
               padding: "5px 14px",
-              borderBottom: "1px solid var(--hairline)",
-              background: "var(--bg-canvas)",
+              borderBottom: "1px solid var(--border-soft)",
               fontSize: 11.2,
-              color: currentFrame.phase_label?.includes("Interrupt")
-                ? "var(--sig-red)"
-                : "var(--ink-secondary)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              color: "var(--ink-blue)",
+              background: "var(--ink-blue-tint)",
             }}
-            title={currentFrame.phase_label}
           >
-            {currentFrame.phase_label ?? currentFrame.lifecycle_phase}
+            定位来源：{symbolProvenance}
           </div>
+        )}
 
-          <div className="pane-scroll">
-            {sandboxTab === "matrix" &&
-              (allChannelNames.length === 0 ? (
-                <div style={{ padding: "18px 14px", color: "var(--ink-muted)", fontSize: 12 }}>
-                  当前处于编译静态期（Compile），尚未注入运行输入。点击顶栏{" "}
-                  <strong style={{ color: "var(--ink)" }}>Next Phase</strong> 启动第 0 超步。
-                </div>
-              ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <table className="clean-matrix mono">
-                    <thead>
-                      <tr>
-                        <th>Channel</th>
-                        <th>Ver</th>
-                        {realNodes.map((n) => (
-                          <th key={n}>{n}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allChannelNames.map((ch) => {
-                        const globalVer = mem.channel_versions[ch];
-                        const prevVer = prevFrame?.memory_snapshot.channel_versions[ch];
-                        const bumped = prevVer !== undefined && prevVer !== globalVer;
-                        return (
-                          <tr key={ch}>
-                            <td style={{ color: "var(--ink)", fontWeight: 500 }}>{ch}</td>
-                            <td
-                              style={{
-                                color: bumped ? "var(--sig-amber)" : "var(--ink)",
-                                fontWeight: 500,
-                              }}
-                            >
-                              {globalVer}
-                              {bumped ? "↑" : ""}
-                            </td>
-                            {realNodes.map((n) => {
-                              const seenVer = mem.versions_seen[n]?.[ch];
-                              const numGlobal = Number(globalVer);
-                              const numSeen = seenVer === undefined ? 0 : Number(seenVer);
-                              const isScheduledTrigger = Boolean(
-                                scheduledTriggersByNode.get(n)?.has(ch)
-                              );
-                              const unseenHot =
-                                isScheduledTrigger &&
-                                !Number.isNaN(numGlobal) &&
-                                numGlobal > numSeen;
-                              return (
-                                <td
-                                  key={n}
-                                  className={unseenHot ? "unseen-hot" : ""}
-                                  title={
-                                    unseenHot
-                                      ? `触发唤醒 ${n} (全局 v${globalVer} > 已见 v${seenVer ?? 0})`
-                                      : seenVer !== undefined
-                                        ? `已消费同步 (v${seenVer})`
-                                        : "未订阅或未消费"
-                                  }
-                                >
-                                  {unseenHot
-                                    ? `${seenVer ?? 0} → ${globalVer}`
-                                    : seenVer === undefined
-                                      ? "·"
-                                      : seenVer}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+        <div className="pane-scroll">
+          {trayMode === "raw" ? (
+            <pre
+              className="mono"
+              style={{
+                margin: 0,
+                padding: "12px 16px",
+                background: "var(--bg-code)",
+                fontSize: 11.3,
+                lineHeight: 1.62,
+                color: "var(--ink-body)",
+                overflowX: "auto",
+              }}
+            >
+              {activeSymbol.raw_excerpt}
+            </pre>
+          ) : (
+            <>
+              {activeSymbol.fields.map((f) => (
+                <div key={f.name} className="kv-row">
+                  <div className="kv-top">
+                    <span className="kv-sig mono">{f.name}</span>
+                    {trayMode === "fusion" && (
+                      <span
+                        className="kv-live-val mono"
+                        title={formatLiveBinding(f.live_key)}
+                      >
+                        {formatLiveBinding(f.live_key)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="kv-desc">{f.duty_cn}</div>
                 </div>
               ))}
 
-            {sandboxTab === "channels" && (
-              <div>
-                <div
-                  className="eyebrow"
-                  style={{
-                    padding: "8px 14px 5px",
-                    borderBottom: "1px solid var(--hairline)",
-                  }}
-                >
-                  Committed Channel Values
-                </div>
-                {Object.entries(mem.channel_values).map(([k, v]) => {
-                  const prevVal = prevFrame?.memory_snapshot.channel_values[k];
-                  const changed = JSON.stringify(prevVal) !== JSON.stringify(v);
-                  return (
-                    <div key={k} className="kv-row mono">
-                      <div className="kv-top">
-                        <span className="kv-sig">{k}</span>
-                        {changed && (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              padding: "0 5px",
-                              borderRadius: 4,
-                              background: "var(--sig-green-tint)",
-                              color: "var(--sig-green)",
-                            }}
-                          >
-                            updated
-                          </span>
-                        )}
-                      </div>
-                      <div
-                        className="kv-desc mono"
-                        style={{ wordBreak: "break-all", fontSize: 11.2 }}
-                      >
-                        {JSON.stringify(v)}
-                      </div>
+              {activeSymbol.subclasses_summary &&
+                activeSymbol.subclasses_summary.length > 0 && (
+                  <div>
+                    <div
+                      className="eyebrow"
+                      style={{
+                        padding: "10px 16px 6px",
+                        background: "var(--bg-subtle)",
+                        borderBottom: "1px solid var(--border-soft)",
+                      }}
+                    >
+                      不同通道子类的行为差别
                     </div>
-                  );
-                })}
-
-                <div
-                  className="eyebrow"
-                  style={{
-                    padding: "12px 14px 5px",
-                    borderBottom: "1px solid var(--hairline)",
-                  }}
-                >
-                  Uncommitted Pending Writes (Pre-Barrier)
-                </div>
-                {mem.pending_writes.length === 0 ? (
-                  <div
-                    className="mono"
-                    style={{ padding: "10px 14px", fontSize: 11.5, color: "var(--ink-faint)" }}
-                  >
-                    none
+                    {activeSymbol.subclasses_summary.map((sub) => (
+                      <div key={sub.name} className="kv-row">
+                        <div className="kv-sig mono">{sub.name}</div>
+                        <div className="kv-desc">{sub.behavior_diff_cn}</div>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  mem.pending_writes.map((pw, idx) => (
-                    <div key={idx} className="kv-row mono">
-                      <div className="kv-top">
-                        <span className="kv-sig" style={{ color: "var(--sig-amber)" }}>
-                          {pw.task_name} → {pw.channel}
-                        </span>
-                      </div>
-                      <div className="kv-desc mono" style={{ fontSize: 11.2 }}>
-                        {JSON.stringify(pw.value)}
-                      </div>
-                    </div>
-                  ))
                 )}
-              </div>
-            )}
+            </>
+          )}
+        </div>
+      </div>
 
-            {sandboxTab === "tasks" && (
-              <div>
-                <div
-                  className="eyebrow"
-                  style={{
-                    padding: "8px 14px 5px",
-                    borderBottom: "1px solid var(--hairline)",
-                  }}
-                >
-                  Scheduled Tasks &amp; Isolated Snapshots
-                </div>
-                {mem.tasks_queue.length === 0 ? (
-                  <div
-                    style={{ padding: "14px", fontSize: 12, color: "var(--ink-muted)" }}
-                  >
-                    空任务队列 — 当前超步无触发条件满足（Vote to Halt）。
-                  </div>
-                ) : (
-                  mem.tasks_queue.map((t, i) => (
-                    <div key={`${t.name}_${i}`} className="kv-row mono">
-                      <div className="kv-top">
-                        <span className="kv-sig">{t.name}</span>
-                        <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>
-                          [{t.triggers.join(", ")}]
-                        </span>
-                      </div>
-                      <div className="kv-desc mono" style={{ fontSize: 11.2 }}>
-                        input: {JSON.stringify(t.input)}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+      {/* ================================================================
+          BOTTOM CARD: SUPERSTEP LIVE RUNTIME STATE (超步运行现场)
+          ================================================================ */}
+      <div className="runtime-card">
+        <div className="col-bar" style={{ paddingLeft: 12, paddingRight: 12 }}>
+          <div className="editor-tabs">
+            {(
+              [
+                ["matrix", "谁被唤醒？"],
+                ["channels", "通道真值"],
+                ["tasks", "并发任务"],
+                ["scratchpad", "断点草稿"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`editor-tab ${sandboxTab === id ? "active" : ""}`}
+                style={{ padding: "0 9px", fontSize: 12 }}
+                onClick={() => setSandboxTab(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-            {sandboxTab === "scratchpad" && (
-              <pre
-                className="mono"
+          <span
+            className="chapter-num-badge"
+            style={{ fontSize: 11, padding: "2px 8px" }}
+            title={currentFrame.phase_label}
+          >
+            第 {currentFrame.superstep} 轮超步
+          </span>
+        </div>
+
+        <div
+          style={{
+            padding: "6px 16px",
+            borderBottom: "1px solid var(--border-soft)",
+            background: "var(--bg-subtle)",
+            fontSize: 11.8,
+            color: currentFrame.phase_label?.includes("Interrupt")
+              ? "var(--ink-coral)"
+              : "var(--ink-body)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={currentFrame.phase_label}
+        >
+          当前画面：{currentFrame.phase_label ?? currentFrame.lifecycle_phase}
+        </div>
+
+        <div className="pane-scroll">
+          {sandboxTab === "matrix" &&
+            (allChannelNames.length === 0 ? (
+              <div
                 style={{
-                  margin: 0,
-                  padding: "12px 14px",
-                  fontSize: 11.5,
-                  lineHeight: 1.6,
-                  color: "var(--ink-secondary)",
-                  overflowX: "auto",
+                  padding: "18px 16px",
+                  color: "var(--ink-muted)",
+                  fontSize: 12.5,
+                  lineHeight: 1.65,
                 }}
               >
-                {JSON.stringify(mem.scratchpad ?? {}, null, 2)}
-              </pre>
-            )}
-          </div>
+                此刻还在静态编译建图阶段，还没有注入输入数据。点击上方橙色按钮{" "}
+                <strong style={{ color: "var(--clay)" }}>「下一步 ›」</strong>{" "}
+                开始观察第 0 轮超步如何唤醒节点吧！
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table className="clean-matrix mono">
+                  <thead>
+                    <tr>
+                      <th>状态通道</th>
+                      <th>版本</th>
+                      {realNodes.map((n) => (
+                        <th key={n}>{n}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allChannelNames.map((ch) => {
+                      const globalVer = mem.channel_versions[ch];
+                      const prevVer =
+                        prevFrame?.memory_snapshot.channel_versions[ch];
+                      const bumped =
+                        prevVer !== undefined && prevVer !== globalVer;
+                      return (
+                        <tr key={ch}>
+                          <td style={{ color: "var(--ink)", fontWeight: 600 }}>
+                            {ch}
+                          </td>
+                          <td
+                            style={{
+                              color: bumped ? "var(--ink-amber)" : "var(--ink)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            v{globalVer}
+                            {bumped ? " ↑" : ""}
+                          </td>
+                          {realNodes.map((n) => {
+                            const seenVer = mem.versions_seen[n]?.[ch];
+                            const numGlobal = Number(globalVer);
+                            const numSeen =
+                              seenVer === undefined ? 0 : Number(seenVer);
+                            const isScheduledTrigger = Boolean(
+                              scheduledTriggersByNode.get(n)?.has(ch)
+                            );
+                            const unseenHot =
+                              isScheduledTrigger &&
+                              !Number.isNaN(numGlobal) &&
+                              numGlobal > numSeen;
+                            return (
+                              <td
+                                key={n}
+                                className={unseenHot ? "unseen-hot" : ""}
+                                title={
+                                  unseenHot
+                                    ? `通道最新 v${globalVer} 大于节点 ${n} 上次读过的 v${seenVer ?? 0}，因此本轮唤醒它！`
+                                    : seenVer !== undefined
+                                      ? `节点已读过 v${seenVer}，没有新变化`
+                                      : "该节点不监听此通道或尚未执行"
+                                }
+                              >
+                                {unseenHot
+                                  ? `${seenVer ?? 0} → ${globalVer}`
+                                  : seenVer === undefined
+                                    ? "·"
+                                    : `v${seenVer}`}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+
+          {sandboxTab === "channels" && (
+            <div>
+              <div
+                className="eyebrow"
+                style={{
+                  padding: "8px 16px 6px",
+                  background: "var(--bg-subtle)",
+                  borderBottom: "1px solid var(--border-soft)",
+                }}
+              >
+                已正式生效的通道值（全局可见）
+              </div>
+              {Object.entries(mem.channel_values).map(([k, v]) => {
+                const prevVal = prevFrame?.memory_snapshot.channel_values[k];
+                const changed = JSON.stringify(prevVal) !== JSON.stringify(v);
+                return (
+                  <div key={k} className="kv-row mono">
+                    <div className="kv-top">
+                      <span className="kv-sig">{k}</span>
+                      {changed && (
+                        <span
+                          style={{
+                            fontFamily: "var(--font-sans)",
+                            fontSize: 10.5,
+                            fontWeight: 600,
+                            padding: "1px 7px",
+                            borderRadius: 99,
+                            background: "var(--ink-sage-tint)",
+                            color: "var(--ink-sage)",
+                          }}
+                        >
+                          刚刚更新
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className="kv-desc mono"
+                      style={{ wordBreak: "break-all", fontSize: 11.4 }}
+                    >
+                      {JSON.stringify(v)}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div
+                className="eyebrow"
+                style={{
+                  padding: "10px 16px 6px",
+                  background: "var(--bg-subtle)",
+                  borderBottom: "1px solid var(--border-soft)",
+                }}
+              >
+                屏障外暂存写入（同轮其他并发节点还看不见）
+              </div>
+              {mem.pending_writes.length === 0 ? (
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    fontSize: 12,
+                    color: "var(--ink-faint)",
+                  }}
+                >
+                  当前没有暂存写入
+                </div>
+              ) : (
+                mem.pending_writes.map((pw, idx) => (
+                  <div key={idx} className="kv-row mono">
+                    <div className="kv-top">
+                      <span
+                        className="kv-sig"
+                        style={{ color: "var(--ink-amber)" }}
+                      >
+                        {pw.task_name} → {pw.channel}
+                      </span>
+                    </div>
+                    <div className="kv-desc mono" style={{ fontSize: 11.4 }}>
+                      {JSON.stringify(pw.value)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {sandboxTab === "tasks" && (
+            <div>
+              <div
+                className="eyebrow"
+                style={{
+                  padding: "8px 16px 6px",
+                  background: "var(--bg-subtle)",
+                  borderBottom: "1px solid var(--border-soft)",
+                }}
+              >
+                本轮排期执行的节点任务（各自拿到独立只读拷贝）
+              </div>
+              {mem.tasks_queue.length === 0 ? (
+                <div
+                  style={{
+                    padding: "16px",
+                    fontSize: 12.5,
+                    color: "var(--ink-muted)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  没有新的通道变化需要处理，全部节点一致同意停机收敛（Vote to
+                  Halt）。
+                </div>
+              ) : (
+                mem.tasks_queue.map((t, i) => (
+                  <div key={`${t.name}_${i}`} className="kv-row mono">
+                    <div className="kv-top">
+                      <span className="kv-sig">{t.name}</span>
+                      <span
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: 11,
+                          color: "var(--ink-muted)",
+                        }}
+                      >
+                        由 {t.triggers.join(", ")} 唤醒
+                      </span>
+                    </div>
+                    <div className="kv-desc mono" style={{ fontSize: 11.4 }}>
+                      只读输入快照：{JSON.stringify(t.input)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {sandboxTab === "scratchpad" && (
+            <pre
+              className="mono"
+              style={{
+                margin: 0,
+                padding: "14px 16px",
+                fontSize: 11.5,
+                lineHeight: 1.65,
+                color: "var(--ink-body)",
+                overflowX: "auto",
+              }}
+            >
+              {JSON.stringify(mem.scratchpad ?? {}, null, 2)}
+            </pre>
+          )}
         </div>
       </div>
     </aside>

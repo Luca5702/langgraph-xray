@@ -18,7 +18,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const initial = loadEngineSettings();
   const [geminiApiKey, setGeminiApiKey] = useState(initial.geminiApiKey);
   const [edgeApiBaseUrl, setEdgeApiBaseUrl] = useState(initial.edgeApiBaseUrl);
-  const [apiHealth, setApiHealth] = useState<string>("Checking runtime...");
+  const [apiHealth, setApiHealth] = useState<string>("正在检查连接状态…");
   const [apiOnline, setApiOnline] = useState<boolean>(false);
   const [savedToast, setSavedToast] = useState(false);
 
@@ -35,17 +35,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           if (d.ok) {
             setApiOnline(true);
             setApiHealth(
-              `Connected · Cloudflare D1 Edge API (langgraph ${d.langgraph_version})`
+              `已连接边缘知识库 · 内核版本 langgraph ${d.langgraph_version}`
             );
           } else {
             setApiOnline(false);
-            setApiHealth("Standalone Static Mode (Local Heuristic Engine)");
+            setApiHealth("离线伴读模式 · 本地启发式引擎已就绪");
           }
         }
       )
       .catch(() => {
         setApiOnline(false);
-        setApiHealth("Standalone Static Mode (Local Heuristic Engine)");
+        setApiHealth("离线伴读模式 · 本地启发式引擎已就绪");
       });
   }, [edgeApiBaseUrl]);
 
@@ -66,7 +66,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "langgraph-xray-personal-graph.json";
+    a.download = "langgraph-companion-notes.json";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -83,29 +83,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           }}
         >
           <div>
-            <div className="eyebrow">CONFIGURATION</div>
-            <div style={{ fontSize: 15, fontWeight: 600, marginTop: 2 }}>
-              Engine &amp; Knowledge Graph Settings
+            <span className="chapter-num-badge" style={{ fontSize: 11 }}>
+              伴读偏好设置
+            </span>
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 17,
+                fontWeight: 600,
+                marginTop: 6,
+              }}
+            >
+              AI 追问引擎与个人笔记管理
             </div>
           </div>
           <button
             type="button"
             className="ghost-icon-btn"
             onClick={onClose}
-            aria-label="Close settings"
+            aria-label="关闭设置窗口"
           >
-            <X size={14} strokeWidth={1.5} />
+            <X size={15} strokeWidth={1.7} />
           </button>
         </div>
 
         <div
           style={{
-            padding: "8px 11px",
-            borderRadius: 7,
-            background: "var(--bg-surface-1)",
-            border: "1px solid var(--hairline)",
-            fontSize: 11.5,
-            color: "var(--ink-secondary)",
+            padding: "9px 12px",
+            borderRadius: 10,
+            background: "var(--bg-subtle)",
+            border: "1px solid var(--border-soft)",
+            fontSize: 12,
+            color: "var(--ink-body)",
             marginBottom: 16,
             display: "flex",
             alignItems: "center",
@@ -115,10 +124,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <span
             className="dot"
             style={{
-              background: apiOnline ? "var(--sig-green)" : "var(--sig-amber)",
+              background: apiOnline ? "var(--ink-sage)" : "var(--ink-amber)",
             }}
           />
-          <span className="mono">{apiHealth}</span>
+          <span>{apiHealth}</span>
         </div>
 
         <form
@@ -130,15 +139,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               htmlFor="input-gemini-key"
               style={{
                 display: "block",
-                fontSize: 12,
-                fontWeight: 500,
-                color: "var(--ink-secondary)",
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: "var(--ink-body)",
                 marginBottom: 6,
               }}
             >
               Google Gemini API Key{" "}
-              <span style={{ color: "var(--ink-faint)", fontWeight: 400 }}>
-                (Optional · Browser localStorage only)
+              <span style={{ color: "var(--ink-muted)", fontWeight: 400 }}>
+                （选填 · 仅保存在你的浏览器本地）
               </span>
             </label>
             <input
@@ -150,13 +159,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="mono"
               style={{
                 width: "100%",
-                height: 32,
-                padding: "0 10px",
-                borderRadius: 6,
-                background: "var(--bg-canvas)",
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 9,
+                background: "var(--bg-card)",
                 color: "var(--ink)",
-                border: "1px solid var(--hairline-strong)",
-                fontSize: 12,
+                border: "1px solid var(--border-medium)",
+                fontSize: 12.5,
                 outline: "none",
               }}
             />
@@ -167,15 +176,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               htmlFor="input-edge-url"
               style={{
                 display: "block",
-                fontSize: 12,
-                fontWeight: 500,
-                color: "var(--ink-secondary)",
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: "var(--ink-body)",
                 marginBottom: 6,
               }}
             >
-              Cloudflare Edge API Base URL{" "}
-              <span style={{ color: "var(--ink-faint)", fontWeight: 400 }}>
-                (Default same-origin /api)
+              边缘服务地址{" "}
+              <span style={{ color: "var(--ink-muted)", fontWeight: 400 }}>
+                （留空则默认使用同源 /api）
               </span>
             </label>
             <input
@@ -187,13 +196,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="mono"
               style={{
                 width: "100%",
-                height: 32,
-                padding: "0 10px",
-                borderRadius: 6,
-                background: "var(--bg-canvas)",
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 9,
+                background: "var(--bg-card)",
                 color: "var(--ink)",
-                border: "1px solid var(--hairline-strong)",
-                fontSize: 12,
+                border: "1px solid var(--border-medium)",
+                fontSize: 12.5,
                 outline: "none",
               }}
             />
@@ -205,7 +214,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               justifyContent: "space-between",
               alignItems: "center",
               paddingTop: 14,
-              borderTop: "1px solid var(--hairline)",
+              borderTop: "1px solid var(--border-soft)",
               marginTop: 4,
             }}
           >
@@ -214,17 +223,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="subtle-btn"
               onClick={handleExportPersonalGraph}
             >
-              <Download size={12} strokeWidth={1.5} />
-              Export Drafts ({personalGraph.nodes.length})
+              <Download size={13} strokeWidth={1.6} />
+              导出我的画布笔记（{personalGraph.nodes.length}）
             </button>
 
             <button
               type="submit"
               className="primary-cta"
-              style={{ height: 30, padding: "0 14px" }}
+              style={{ height: 32, padding: "0 16px" }}
             >
-              <Check size={13} strokeWidth={1.8} />
-              {savedToast ? "Saved" : "Save"}
+              <Check size={14} strokeWidth={1.9} />
+              {savedToast ? "已保存" : "保存设置"}
             </button>
           </div>
         </form>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowUpRight, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronRight, HelpCircle } from "lucide-react";
 import type {
   ChapterCurriculum,
   ConceptCardConfig,
@@ -25,6 +25,11 @@ interface TutorialPaneProps {
 
 const TOKEN_REGEX = /\[\[(sym|concept):([^|\]]+)\|([^\]]+)\]\]/g;
 
+function formatChapterLabel(num: string): string {
+  const n = num.replace(/[^0-9]/g, "");
+  return `第 ${Number(n) || 1} 关`;
+}
+
 export const TutorialPane: React.FC<TutorialPaneProps> = ({
   chapter,
   concepts,
@@ -38,7 +43,9 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
     blockId: string;
     conceptId: string;
   } | null>(null);
-  const [expandedMargins, setExpandedMargins] = useState<Record<string, boolean>>({});
+  const [expandedMargins, setExpandedMargins] = useState<Record<string, boolean>>(
+    {}
+  );
   const [selectionPopup, setSelectionPopup] = useState<{
     x: number;
     y: number;
@@ -51,8 +58,8 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
     const txt = sel?.toString().trim() ?? "";
     if (txt.length >= 4 && txt.length <= 260) {
       setSelectionPopup({
-        x: Math.min(window.innerWidth - 220, Math.max(16, e.clientX - 60)),
-        y: Math.max(52, e.clientY - 40),
+        x: Math.min(window.innerWidth - 230, Math.max(16, e.clientX - 60)),
+        y: Math.max(58, e.clientY - 42),
         text: txt,
         blockId,
       });
@@ -84,8 +91,13 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
           <span
             key={key}
             className="sym-token"
-            title="点击在右侧静态蓝图栏查看字段契约"
-            onClick={() => onInspectSymbol(targetId, `Referenced in ${chapter.number}`)}
+            title="点击在右侧「手边结构卡」查看它的字段含义"
+            onClick={() =>
+              onInspectSymbol(
+                targetId,
+                `在${formatChapterLabel(chapter.number)}讲义中点选`
+              )
+            }
           >
             {label}
           </span>
@@ -98,10 +110,10 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
         } else {
           const sup =
             card.lens === "pregel_paper"
-              ? "PAPER"
+              ? "论文"
               : card.lens === "python_syntax"
-                ? "PY"
-                : "SPEC";
+                ? "语法"
+                : "契约";
           const isSelected =
             openConceptKey?.blockId === blockId &&
             openConceptKey?.conceptId === targetId;
@@ -109,7 +121,7 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
             <span
               key={key}
               className={`concept-token ${isSelected ? "open" : ""}`}
-              title="点击原位展开背景知识切片"
+              title="点击原位展开通俗背景小抄"
               onClick={() =>
                 setOpenConceptKey(
                   isSelected ? null : { blockId, conceptId: targetId }
@@ -136,9 +148,9 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
   };
 
   return (
-    <section className="pane-col" aria-label="主脊柱精读讲义">
+    <section className="pane-col" aria-label="伴读讲义">
       <div className="col-bar">
-        <span className="eyebrow">Guide · {chapter.number}</span>
+        <span className="section-tag">伴读讲义</span>
         <button
           type="button"
           onClick={() =>
@@ -148,16 +160,17 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
             border: "none",
             background: "transparent",
             padding: 0,
-            color: "var(--ink-muted)",
-            fontSize: 11.5,
+            color: "var(--clay)",
+            fontSize: 12,
+            fontWeight: 500,
             display: "inline-flex",
             alignItems: "center",
             gap: 4,
             cursor: "pointer",
           }}
         >
-          <span>{branchCountByChapter} branches in Canvas</span>
-          <ArrowUpRight size={12} strokeWidth={1.5} />
+          <span>画布已有 {branchCountByChapter} 张思考卡</span>
+          <ArrowUpRight size={13} strokeWidth={1.7} />
         </button>
       </div>
 
@@ -166,14 +179,14 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
         onScroll={() => setSelectionPopup(null)}
       >
         <header className="editorial-header">
-          <div className="eyebrow">
-            {chapter.number.replace("Ch.", "CHAPTER 0")} · KERNEL ANATOMY
-          </div>
+          <span className="chapter-kicker">
+            {formatChapterLabel(chapter.number)} · 边跑边读源码
+          </span>
           <h2 className="editorial-title">{chapter.title}</h2>
-          <p className="editorial-lede">
-            <strong>核心命题 — </strong>
+          <div className="core-question-card">
+            <span className="core-question-label">本关一起搞懂这个问题</span>
             {chapter.core_question}
-          </p>
+          </div>
         </header>
 
         {chapter.sections.map((sec) => {
@@ -195,18 +208,19 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenCanvasFromSpine(sec.spine_node_id)}
-                  title="在语义画布展开本节探索脉络"
+                  title="去思维生长画布顺着本节继续发散"
                   style={{
                     border: "none",
                     background: "transparent",
-                    padding: 0,
-                    fontSize: 11,
-                    color: "var(--ink-faint)",
+                    padding: "2px 6px",
+                    borderRadius: 6,
+                    fontSize: 11.5,
+                    color: "var(--ink-muted)",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Explore ↗
+                  展开聊聊 ↗
                 </button>
               </div>
 
@@ -247,14 +261,30 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
                       }))
                     }
                   >
-                    <span>Q&amp;A · {sec.margin_note.q}</span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <HelpCircle
+                        size={13}
+                        strokeWidth={1.8}
+                        color="var(--clay)"
+                        style={{ flexShrink: 0 }}
+                      />
+                      <span>常见疑问：{sec.margin_note.q}</span>
+                    </span>
                     {marginOpen ? (
-                      <ChevronDown size={13} strokeWidth={1.5} />
+                      <ChevronDown size={14} strokeWidth={1.6} />
                     ) : (
-                      <ChevronRight size={13} strokeWidth={1.5} />
+                      <ChevronRight size={14} strokeWidth={1.6} />
                     )}
                   </button>
-                  {marginOpen && <div className="qa-answer">{sec.margin_note.a}</div>}
+                  {marginOpen && (
+                    <div className="qa-answer">{sec.margin_note.a}</div>
+                  )}
                 </div>
               )}
             </article>
@@ -281,7 +311,7 @@ export const TutorialPane: React.FC<TutorialPaneProps> = ({
               );
             }}
           >
-            推入生长画布追问 ↗
+            把这段放入画布深聊 ↗
           </button>
         </div>
       )}

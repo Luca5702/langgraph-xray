@@ -4,7 +4,7 @@ const INLINE_MD_REGEX = /(`[^`]+`|\*\*[^*]+\*\*)/g;
 
 /**
  * Lightweight inline formatter converting `code` spans and **bold** spans
- * into clean Geist Mono chips and medium-weight emphasis without raw markdown punctuation.
+ * into soft warm paper code pills and warm ink emphasis.
  */
 export const InlineMarkdown: React.FC<{ text: string }> = ({ text }) => {
   const parts = text.split(INLINE_MD_REGEX);
@@ -17,11 +17,11 @@ export const InlineMarkdown: React.FC<{ text: string }> = ({ text }) => {
               key={i}
               className="mono"
               style={{
-                fontSize: "0.9em",
-                padding: "1px 4px",
-                borderRadius: 4,
-                background: "var(--bg-surface-1)",
-                border: "1px solid var(--hairline)",
+                fontSize: "0.88em",
+                padding: "1px 5px",
+                borderRadius: 5,
+                background: "var(--bg-subtle)",
+                border: "1px solid var(--border-soft)",
                 color: "var(--ink)",
               }}
             >

@@ -42,12 +42,12 @@ interface CanvasCardData extends Record<string, unknown> {
   onEndorseNode: (node: ExtendedGraphNode) => void;
 }
 
-const KIND_META: Record<string, { eyebrow: string; dotColor: string }> = {
-  spine: { eyebrow: "SPINE ANCHOR", dotColor: "var(--sig-blue)" },
-  insight: { eyebrow: "INSIGHT", dotColor: "var(--sig-green)" },
-  symbol: { eyebrow: "SYMBOL CONTRACT", dotColor: "var(--ink-muted)" },
-  theory: { eyebrow: "PAPER · SIGMOD '10", dotColor: "var(--sig-amber)" },
-  syntax: { eyebrow: "PYTHON RUNTIME", dotColor: "var(--sig-amber)" },
+const KIND_META: Record<string, { label: string; dotColor: string }> = {
+  spine: { label: "章节主线", dotColor: "var(--clay)" },
+  insight: { label: "延伸思考", dotColor: "var(--ink-sage)" },
+  symbol: { label: "核心结构", dotColor: "var(--ink-blue)" },
+  theory: { label: "论文溯源", dotColor: "var(--ink-amber)" },
+  syntax: { label: "Python 机制", dotColor: "var(--ink-amber)" },
 };
 
 const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
@@ -64,7 +64,7 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
   } = data;
 
   const meta = KIND_META[kgNode.kind] ?? {
-    eyebrow: kgNode.kind.toUpperCase(),
+    label: "知识卡片",
     dotColor: "var(--ink-muted)",
   };
 
@@ -74,10 +74,10 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
         type="target"
         position={Position.Left}
         style={{
-          background: "var(--bg-surface-3)",
-          border: "1px solid var(--ink-muted)",
-          width: 6,
-          height: 6,
+          background: "var(--bg-sand)",
+          border: "1.5px solid var(--edge-solid)",
+          width: 7,
+          height: 7,
         }}
       />
 
@@ -89,17 +89,14 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
           gap: 6,
         }}
       >
-        <span
-          className="eyebrow"
-          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-        >
+        <span className="kg-badge">
           <span className="dot" style={{ background: meta.dotColor }} />
-          {kgNode.visibility === "local_personal" ? "PERSONAL DRAFT" : meta.eyebrow}
+          {kgNode.visibility === "local_personal" ? "我的追问笔记" : meta.label}
         </span>
 
         {kgNode.heat_score !== undefined && kgNode.kind === "insight" && (
-          <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>
-            +{kgNode.heat_score}
+          <span style={{ fontSize: 11, color: "var(--ink-muted)" }}>
+            {kgNode.heat_score} 人觉得有启发
           </span>
         )}
       </div>
@@ -109,32 +106,35 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
         <InlineMarkdown text={kgNode.concise_markdown} />
       </div>
 
-      {!collapsed && kgNode.suggested_sparks && kgNode.suggested_sparks.length > 0 && (
-        <div className="nodrag" style={{ marginTop: 8 }}>
-          {kgNode.suggested_sparks.slice(0, 2).map((sp, i) => (
-            <button
-              key={i}
-              type="button"
-              className="spark-link"
-              onClick={() => onSparkClick(kgNode.id, sp)}
-            >
-              <CornerDownRight
-                size={11}
-                strokeWidth={1.5}
-                style={{ flexShrink: 0, marginTop: 2 }}
-              />
-              <span>{sp.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      {!collapsed &&
+        kgNode.suggested_sparks &&
+        kgNode.suggested_sparks.length > 0 && (
+          <div className="nodrag" style={{ marginTop: 10 }}>
+            {kgNode.suggested_sparks.slice(0, 2).map((sp, i) => (
+              <button
+                key={i}
+                type="button"
+                className="spark-link"
+                onClick={() => onSparkClick(kgNode.id, sp)}
+              >
+                <CornerDownRight
+                  size={12}
+                  strokeWidth={1.6}
+                  color="var(--clay)"
+                  style={{ flexShrink: 0, marginTop: 2 }}
+                />
+                <span>{sp.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
       <div
         className="nodrag"
         style={{
-          marginTop: 10,
-          paddingTop: 7,
-          borderTop: "1px solid var(--hairline)",
+          marginTop: 12,
+          paddingTop: 8,
+          borderTop: "1px solid var(--border-soft)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -149,15 +149,16 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
               border: "none",
               background: "transparent",
               padding: 0,
-              fontSize: 11,
-              color: "var(--ink-muted)",
+              fontSize: 11.5,
+              fontWeight: 500,
+              color: "var(--ink-blue)",
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
               cursor: "pointer",
             }}
           >
-            <Pin size={11} strokeWidth={1.5} /> Pin to Tray
+            <Pin size={12} strokeWidth={1.6} /> 固定到手边卡
           </button>
         ) : kgNode.kind === "insight" ? (
           <button
@@ -167,16 +168,17 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
               border: "none",
               background: "transparent",
               padding: 0,
-              fontSize: 11,
-              color: kgNode.endorsed ? "var(--sig-green)" : "var(--ink-muted)",
+              fontSize: 11.5,
+              fontWeight: 500,
+              color: kgNode.endorsed ? "var(--ink-sage)" : "var(--ink-muted)",
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
               cursor: "pointer",
             }}
           >
-            <ThumbsUp size={11} strokeWidth={1.5} />
-            {kgNode.endorsed ? "Endorsed" : "Endorse"}
+            <ThumbsUp size={12} strokeWidth={1.6} />
+            {kgNode.endorsed ? "已标记有启发" : "很有启发"}
           </button>
         ) : (
           <span />
@@ -190,12 +192,12 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
               border: "none",
               background: "transparent",
               padding: 0,
-              fontSize: 11,
+              fontSize: 11.5,
               color: "var(--ink-muted)",
               cursor: "pointer",
             }}
           >
-            {collapsed ? "Expand" : "Collapse"}
+            {collapsed ? "展开分支" : "收起分支"}
           </button>
         )}
       </div>
@@ -204,10 +206,10 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
         type="source"
         position={Position.Right}
         style={{
-          background: "var(--bg-surface-3)",
-          border: "1px solid var(--ink-muted)",
-          width: 6,
-          height: 6,
+          background: "var(--bg-sand)",
+          border: "1.5px solid var(--edge-solid)",
+          width: 7,
+          height: 7,
         }}
       />
     </div>
@@ -311,7 +313,7 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
             title: sym.name,
             concise_markdown: sym.fields
               .slice(0, 2)
-              .map((f) => `${f.name.split(":")[0]}: ${f.duty_cn}`)
+              .map((f) => `${f.name.split(":")[0]}：${f.duty_cn}`)
               .join(" · "),
           });
         } else {
@@ -382,15 +384,21 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
         layoutOptions: {
           "elk.algorithm": "layered",
           "elk.direction": "RIGHT",
-          "elk.layered.spacing.nodeNodeBetweenLayers": "104",
-          "elk.spacing.nodeNode": "34",
+          "elk.layered.spacing.nodeNodeBetweenLayers": "116",
+          "elk.spacing.nodeNode": "42",
           "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
         },
-        children: graphNodes.map((n) => ({
-          id: n.id,
-          width: n.kind === "spine" ? 298 : 284,
-          height: n.suggested_sparks?.length ? 220 : 162,
-        })),
+        children: graphNodes.map((n) => {
+          const bodyLines = Math.max(2, Math.ceil(n.concise_markdown.length / 20));
+          const sparkCount = collapsedIds.has(n.id)
+            ? 0
+            : Math.min(2, n.suggested_sparks?.length ?? 0);
+          return {
+            id: n.id,
+            width: n.kind === "spine" ? 304 : 288,
+            height: 116 + bodyLines * 21 + sparkCount * 54,
+          };
+        }),
         edges: graphEdges.map((e) => ({
           id: e.id,
           sources: [e.source],
@@ -401,25 +409,25 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
       const laidOut = await elk.layout(elkGraph);
       if (cancelled) return;
 
-      const nextNodes: Array<Node<CanvasCardData>> = (laidOut.children ?? []).map(
-        (c) => {
-          const kgNode = graphNodes.find((n) => n.id === c.id)!;
-          return {
-            id: c.id,
-            type: "semanticCard",
-            position: { x: c.x ?? 0, y: c.y ?? 0 },
-            data: {
-              kgNode,
-              collapsed: collapsedIds.has(c.id),
-              hasChildren: parentHasSolidChild.has(c.id),
-              onToggleCollapse: toggleCollapse,
-              onSparkClick: handleSparkClick,
-              onPinSymbol: onPinSymbolAndReturn,
-              onEndorseNode,
-            },
-          };
-        }
-      );
+      const nextNodes: Array<Node<CanvasCardData>> = (
+        laidOut.children ?? []
+      ).map((c) => {
+        const kgNode = graphNodes.find((n) => n.id === c.id)!;
+        return {
+          id: c.id,
+          type: "semanticCard",
+          position: { x: c.x ?? 0, y: c.y ?? 0 },
+          data: {
+            kgNode,
+            collapsed: collapsedIds.has(c.id),
+            hasChildren: parentHasSolidChild.has(c.id),
+            onToggleCollapse: toggleCollapse,
+            onSparkClick: handleSparkClick,
+            onPinSymbol: onPinSymbolAndReturn,
+            onEndorseNode,
+          },
+        };
+      });
 
       const nextEdges: Edge[] = graphEdges.map((e) => ({
         id: e.id,
@@ -428,8 +436,8 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
         style: {
           stroke:
             e.style === "solid" ? "var(--edge-solid)" : "var(--edge-dashed)",
-          strokeWidth: 1.25,
-          strokeDasharray: e.style === "dashed" ? "4 4" : undefined,
+          strokeWidth: 1.4,
+          strokeDasharray: e.style === "dashed" ? "5 5" : undefined,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -474,9 +482,9 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
   };
 
   const quickPrompts = [
-    "如果并行分支其中一个抛异常，另一个已写入的结果会回滚吗？",
-    "对比 Google Pregel 2010 原版论文，这里做了什么工程演进？",
-    "局部变量与底层 Channel 如何配合做到无锁读写隔离？",
+    "如果两个并行分支里有一个报错了，另一个已算完的结果会保留吗？",
+    "对比 Google Pregel 原版论文，LangGraph 在工程上做了什么取舍？",
+    "局部快照和底层 Channel 是怎么配合做到不加锁也不串味的？",
   ];
 
   const chapterPersonalCount = personalNodes.filter(
@@ -484,7 +492,7 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
   ).length;
 
   return (
-    <div className="canvas-stage" aria-label="受控自动生长语义画布">
+    <div className="canvas-stage" aria-label="思维生长画布">
       <aside className="canvas-sidebar">
         <div className="col-bar">
           <button
@@ -494,57 +502,64 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
               border: "none",
               background: "transparent",
               padding: 0,
-              color: "var(--ink-secondary)",
-              fontSize: 12,
-              fontWeight: 500,
+              color: "var(--ink-body)",
+              fontSize: 12.5,
+              fontWeight: 600,
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
               cursor: "pointer",
             }}
           >
-            <ArrowLeft size={13} strokeWidth={1.6} />
-            Workbench
+            <ArrowLeft size={14} strokeWidth={1.8} />
+            回到伴读工作台
           </button>
-          <span className="eyebrow">AUTO-DAG</span>
+          <span className="chapter-num-badge" style={{ fontSize: 11 }}>
+            自动整理排版
+          </span>
         </div>
 
-        <div className="pane-scroll" style={{ padding: 16 }}>
+        <div className="pane-scroll" style={{ padding: 18 }}>
           <div
             style={{
               paddingBottom: 14,
               marginBottom: 16,
-              borderBottom: "1px solid var(--hairline)",
+              borderBottom: "1px solid var(--border-soft)",
             }}
           >
-            <div className="eyebrow">ORIGIN ANCHOR · {chapter.number}</div>
+            <div className="eyebrow">当前探讨起点</div>
             <div
               style={{
-                fontSize: 13.5,
+                fontFamily: "var(--font-serif)",
+                fontSize: 15,
                 fontWeight: 600,
                 marginTop: 5,
                 color: "var(--ink)",
+                lineHeight: 1.4,
               }}
             >
               {chapter.title}
             </div>
             <div
-              className="mono"
-              style={{ fontSize: 11, color: "var(--ink-muted)", marginTop: 4 }}
+              style={{
+                fontSize: 11.8,
+                color: "var(--ink-muted)",
+                marginTop: 4,
+              }}
             >
-              Frame #{currentFrame.frame_id} · Step {currentFrame.superstep}
+              对应第 {currentFrame.superstep} 轮超步 · 第 {currentFrame.frame_id}{" "}
+              幕
             </div>
             {pendingAnchorContext && (
               <div
-                className="mono"
                 style={{
-                  marginTop: 8,
-                  padding: "6px 8px",
-                  borderRadius: 6,
-                  background: "var(--bg-surface-1)",
-                  border: "1px solid var(--hairline)",
-                  fontSize: 11,
-                  color: "var(--ink-secondary)",
+                  marginTop: 9,
+                  padding: "8px 10px",
+                  borderRadius: 9,
+                  background: "var(--bg-callout)",
+                  borderLeft: "3px solid var(--clay)",
+                  fontSize: 11.8,
+                  color: "var(--ink-body)",
                 }}
               >
                 “{pendingAnchorContext.selectedText.slice(0, 76)}”
@@ -553,24 +568,24 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
           </div>
 
           <form onSubmit={handleSubmitSprout} style={{ marginBottom: 18 }}>
-            <div className="eyebrow" style={{ marginBottom: 6 }}>
-              SPROUT NEW BRANCH
+            <div className="eyebrow" style={{ marginBottom: 7 }}>
+              顺着这里继续追问
             </div>
             <textarea
               id="canvas-sprout-input"
               value={questionInput}
               onChange={(e) => setQuestionInput(e.target.value)}
-              placeholder="围绕当前源码提出追问，自动向右排布卡片并关联静态类契约..."
+              placeholder="写下你的好奇或疑惑，AI 会结合当前源码长出一张新卡片并自动排版…"
               rows={3}
               style={{
                 width: "100%",
-                background: "var(--bg-surface-1)",
+                background: "var(--bg-card)",
                 color: "var(--ink)",
-                border: "1px solid var(--hairline-strong)",
-                borderRadius: 7,
-                padding: "8px 10px",
-                fontSize: 12.2,
-                lineHeight: 1.5,
+                border: "1px solid var(--border-medium)",
+                borderRadius: 10,
+                padding: "9px 11px",
+                fontSize: 12.5,
+                lineHeight: 1.55,
                 resize: "vertical",
                 outline: "none",
               }}
@@ -583,18 +598,18 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
               style={{
                 width: "100%",
                 justifyContent: "center",
-                marginTop: 8,
-                height: 30,
+                marginTop: 9,
+                height: 34,
               }}
             >
-              <Plus size={13} strokeWidth={1.8} />
-              {isSprouting ? "Synthesizing Node..." : "Sprout Branch"}
+              <Plus size={14} strokeWidth={2} />
+              {isSprouting ? "正在为你梳理卡片…" : "生成思考卡片"}
             </button>
           </form>
 
           <div style={{ marginBottom: 18 }}>
-            <div className="eyebrow" style={{ marginBottom: 4 }}>
-              SUGGESTED DIRECTIONS
+            <div className="eyebrow" style={{ marginBottom: 6 }}>
+              或者试试这几个好问题：
             </div>
             {quickPrompts.map((qp, idx) => (
               <button
@@ -607,13 +622,15 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
                     primarySpineId,
                     qp,
                     pendingAnchorContext?.selectedText || qp,
-                    pendingAnchorContext?.targetRef || currentFrame.source_anchor.file
+                    pendingAnchorContext?.targetRef ||
+                      currentFrame.source_anchor.file
                   )
                 }
               >
                 <CornerDownRight
-                  size={11}
-                  strokeWidth={1.5}
+                  size={12}
+                  strokeWidth={1.6}
+                  color="var(--clay)"
                   style={{ flexShrink: 0, marginTop: 2 }}
                 />
                 <span>{qp}</span>
@@ -624,22 +641,29 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
           <div
             style={{
               paddingTop: 14,
-              borderTop: "1px solid var(--hairline)",
-              fontSize: 11.5,
+              borderTop: "1px solid var(--border-soft)",
+              fontSize: 12,
               color: "var(--ink-muted)",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span className="mono" style={{ color: "var(--ink-faint)" }}>
+              <span className="mono" style={{ color: "var(--edge-solid)" }}>
                 ───
               </span>
-              <span>演化追问树 (Tree Lineage)</span>
+              <span>顺着问题一步步深入的脉络</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-              <span className="mono" style={{ color: "var(--ink-faint)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 5,
+              }}
+            >
+              <span className="mono" style={{ color: "var(--edge-dashed)" }}>
                 - - -
               </span>
-              <span>跨概念结构闭合 (Graph Closure)</span>
+              <span>自动串联的相关结构卡与背景知识</span>
             </div>
 
             {chapterPersonalCount > 0 && (
@@ -651,13 +675,13 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
                   alignItems: "center",
                 }}
               >
-                <span>Local drafts: {chapterPersonalCount}</span>
+                <span>我的本关笔记：{chapterPersonalCount} 张</span>
                 <button
                   type="button"
                   className="subtle-btn"
                   onClick={onClearPersonalChapterBranches}
                 >
-                  <Trash2 size={11} strokeWidth={1.5} /> Reset
+                  <Trash2 size={12} strokeWidth={1.6} /> 清空笔记
                 </button>
               </div>
             )}
@@ -665,18 +689,18 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
         </div>
       </aside>
 
-      <div style={{ flex: 1, height: "100%" }}>
+      <div className="canvas-board-wrap">
         <ReactFlow
           nodes={rfNodes}
           edges={rfEdges}
           nodeTypes={NODE_TYPES}
           fitView
-          fitViewOptions={{ padding: 0.22 }}
+          fitViewOptions={{ padding: 0.2 }}
           minZoom={0.4}
           maxZoom={1.35}
           proOptions={{ hideAttribution: true }}
         >
-          <Background gap={24} size={1} color="var(--canvas-dots)" />
+          <Background gap={24} size={1.2} color="var(--canvas-dots)" />
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>
