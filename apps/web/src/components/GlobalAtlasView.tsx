@@ -11,7 +11,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
-import { ArrowUpRight, Compass } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import type {
   ConceptCardConfig,
   ExtendedGraphNode,
@@ -26,59 +26,114 @@ interface AtlasCardData extends Record<string, unknown> {
   onTeleport: (chapterId: string, symbolId?: string) => void;
 }
 
+const DOT_BY_KIND: Record<string, string> = {
+  spine: "var(--sig-blue)",
+  insight: "var(--sig-green)",
+  symbol: "var(--ink-muted)",
+  theory: "var(--sig-amber)",
+  syntax: "var(--sig-amber)",
+};
+
 const AtlasNodeCard: React.FC<NodeProps<Node<AtlasCardData>>> = ({ data }) => {
   const { node, onTeleport } = data;
   return (
-    <div className={`rf-node-card ${node.kind}`} style={{ width: 255, padding: "9px 11px" }}>
+    <div
+      className={`kg-card ${node.kind === "spine" ? "spine" : ""}`}
+      style={{ width: 256, padding: "11px 13px" }}
+    >
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: "var(--accent-teal)", width: 6, height: 6 }}
+        style={{
+          background: "var(--bg-surface-3)",
+          border: "1px solid var(--ink-muted)",
+          width: 5,
+          height: 5,
+        }}
       />
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          fontSize: 10,
-          color: "var(--text-muted)",
-          marginBottom: 3,
+          alignItems: "center",
         }}
       >
-        <span className="mono">{node.kind.toUpperCase()}</span>
-        {node.heat_score ? <span>🔥 {node.heat_score}</span> : null}
+        <span
+          className="eyebrow"
+          style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+        >
+          <span
+            className="dot"
+            style={{ background: DOT_BY_KIND[node.kind] ?? "var(--ink-muted)" }}
+          />
+          {node.kind}
+        </span>
+        {node.heat_score ? (
+          <span className="mono" style={{ fontSize: 10, color: "var(--ink-faint)" }}>
+            +{node.heat_score}
+          </span>
+        ) : null}
       </div>
-      <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{node.title}</div>
+
+      <div className="kg-card-title" style={{ fontSize: 12.5 }}>
+        {node.title}
+      </div>
+
       <div
+        className="kg-card-body"
         style={{
-          fontSize: 11,
-          color: "var(--text-secondary)",
+          fontSize: 11.5,
           display: "-webkit-box",
-          WebkitLineClamp: 3,
+          WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
           overflow: "hidden",
         }}
       >
         {node.concise_markdown}
       </div>
-      <div className="nodrag" style={{ marginTop: 7, textAlign: "right" }}>
+
+      <div
+        className="nodrag"
+        style={{
+          marginTop: 8,
+          paddingTop: 6,
+          borderTop: "1px solid var(--hairline)",
+          textAlign: "right",
+        }}
+      >
         <button
           type="button"
-          className="icon-btn"
-          style={{ padding: "2px 6px", fontSize: 10.5, color: "var(--accent-teal)" }}
           onClick={() =>
             onTeleport(
               node.chapter_id,
               node.kind === "symbol" ? node.id : undefined
             )
           }
+          style={{
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            fontSize: 11,
+            color: "var(--ink-secondary)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+            cursor: "pointer",
+          }}
         >
-          进入解剖台 <ArrowUpRight size={10} />
+          Open in Workbench <ArrowUpRight size={11} strokeWidth={1.5} />
         </button>
       </div>
+
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: "var(--accent-teal)", width: 6, height: 6 }}
+        style={{
+          background: "var(--bg-surface-3)",
+          border: "1px solid var(--ink-muted)",
+          width: 5,
+          height: 5,
+        }}
       />
     </div>
   );
@@ -123,7 +178,7 @@ export const GlobalAtlasView: React.FC<GlobalAtlasViewProps> = ({
             kind: "symbol",
             visibility: "crystallized_public",
             chapter_id: "ch02_superstep_barrier",
-            title: `${sym.name}`,
+            title: sym.name,
             concise_markdown: sym.fields[0]?.duty_cn ?? "",
           });
         } else {
@@ -151,7 +206,15 @@ export const GlobalAtlasView: React.FC<GlobalAtlasViewProps> = ({
     );
 
     return { allNodes: filteredNodes, allEdges: filteredEdges };
-  }, [publicNodes, publicEdges, personalNodes, personalEdges, symbols, concepts, kindFilter]);
+  }, [
+    publicNodes,
+    publicEdges,
+    personalNodes,
+    personalEdges,
+    symbols,
+    concepts,
+    kindFilter,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -162,9 +225,9 @@ export const GlobalAtlasView: React.FC<GlobalAtlasViewProps> = ({
           "elk.algorithm": "layered",
           "elk.direction": "RIGHT",
           "elk.layered.spacing.nodeNodeBetweenLayers": "110",
-          "elk.spacing.nodeNode": "30",
+          "elk.spacing.nodeNode": "28",
         },
-        children: allNodes.map((n) => ({ id: n.id, width: 255, height: 132 })),
+        children: allNodes.map((n) => ({ id: n.id, width: 256, height: 136 })),
         edges: allEdges.map((e) => ({
           id: e.id,
           sources: [e.source],
@@ -193,14 +256,16 @@ export const GlobalAtlasView: React.FC<GlobalAtlasViewProps> = ({
           target: e.target,
           style: {
             stroke:
-              e.style === "solid" ? "var(--accent-teal)" : "var(--accent-amber)",
-            strokeWidth: 1.5,
-            strokeDasharray: e.style === "dashed" ? "4 3" : undefined,
+              e.style === "solid" ? "var(--edge-solid)" : "var(--edge-dashed)",
+            strokeWidth: 1.2,
+            strokeDasharray: e.style === "dashed" ? "4 4" : undefined,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
+            width: 13,
+            height: 13,
             color:
-              e.style === "solid" ? "var(--accent-teal)" : "var(--accent-amber)",
+              e.style === "solid" ? "var(--edge-solid)" : "var(--edge-dashed)",
           },
         }))
       );
@@ -213,38 +278,27 @@ export const GlobalAtlasView: React.FC<GlobalAtlasViewProps> = ({
 
   return (
     <div className="canvas-stage" style={{ flexDirection: "column" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "7px 14px",
-          background: "var(--bg-panel)",
-          borderBottom: "1px solid var(--border-subtle)",
-          flexWrap: "wrap",
-          gap: 8,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Compass size={15} color="var(--accent-teal)" />
-          <strong>全六关 LangGraph 内核知识星图</strong>
-          <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-            共 {allNodes.length} 个知识节点 · {allEdges.length} 条跨章节语义耦合边（点击任意节点直达对应关卡解剖台）
+      <div className="timeline-bar">
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span className="eyebrow">GLOBAL KERNEL ATLAS</span>
+          <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>
+            {allNodes.length} nodes · {allEdges.length} semantic relations across Ch.01–Ch.06
           </span>
         </div>
 
-        <div className="segmented-group">
+        <div className="seg-control" style={{ height: 26 }}>
           {[
-            ["all", "全部节点"],
-            ["spine", "⚓ 六关主脊柱"],
-            ["insight", "🌿 演化洞见"],
-            ["symbol", "📌 核心静态类"],
-            ["theory", "📄 Pregel 论文"],
+            ["all", "All"],
+            ["spine", "Spines"],
+            ["insight", "Insights"],
+            ["symbol", "Symbols"],
+            ["theory", "Papers"],
           ].map(([k, label]) => (
             <button
               key={k}
               type="button"
-              className={`seg-btn ${kindFilter === k ? "active" : ""}`}
+              className={`seg-item ${kindFilter === k ? "active" : ""}`}
+              style={{ height: 20, fontSize: 11.5 }}
               onClick={() => setKindFilter(k)}
             >
               {label}
@@ -264,7 +318,7 @@ export const GlobalAtlasView: React.FC<GlobalAtlasViewProps> = ({
           maxZoom={1.4}
           proOptions={{ hideAttribution: true }}
         >
-          <Background gap={24} size={1} color="var(--border-subtle)" />
+          <Background gap={24} size={1} color="var(--canvas-dots)" />
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>

@@ -1,4 +1,11 @@
-import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { ZoomLevel } from "@langgraph-xray/schema";
 import {
   KERNEL_BUNDLE,
@@ -33,14 +40,33 @@ const GlobalAtlasView = lazy(() =>
   }))
 );
 
-export const App: React.FC = () => {
-  // Default to Ch.2 (Superstep Barrier & Version Wakeup) as flagship anatomy showcase
-  const [activeChapterId, setActiveChapterId] = useState<string>(
-    "ch02_superstep_barrier"
+function pickSignatureFrame(frames: Array<{ superstep: number; lifecycle_phase: string }>): number {
+  const midPlan = frames.findIndex(
+    (f) => f.superstep >= 2 && f.lifecycle_phase === "superstep_plan"
   );
-  const [gear, setGear] = useState<ViewGear>("workbench");
+  if (midPlan >= 0) return midPlan;
+  const step1Plan = frames.findIndex(
+    (f) => f.superstep >= 1 && f.lifecycle_phase === "superstep_plan"
+  );
+  return step1Plan >= 0 ? step1Plan : Math.min(1, frames.length - 1);
+}
+
+export const App: React.FC = () => {
+  const initialParams = useMemo(
+    () => new URLSearchParams(window.location.search),
+    []
+  );
+  const [activeChapterId, setActiveChapterId] = useState<string>(
+    () => initialParams.get("ch") || "ch02_superstep_barrier"
+  );
+  const [gear, setGear] = useState<ViewGear>(() => {
+    const g = initialParams.get("gear");
+    return g === "canvas" || g === "atlas" ? g : "workbench";
+  });
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("L2");
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">(() =>
+    initialParams.get("theme") === "light" ? "light" : "dark"
+  );
   const [activeLenses, setActiveLenses] = useState<KnowledgeLens[]>(() =>
     loadActiveLenses()
   );
@@ -55,13 +81,14 @@ export const App: React.FC = () => {
   const activeProbe = KERNEL_BUNDLE.probes[activeChapter.chapter_id];
   const frames = activeProbe.trace.frames;
 
-  const [frameIndex, setFrameIndex] = useState<number>(1);
+  const [frameIndex, setFrameIndex] = useState<number>(() =>
+    pickSignatureFrame(frames)
+  );
   const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
   const [activeSliceId, setActiveSliceId] = useState<string>(
     activeChapter.default_slice_id
   );
 
-  // At-Hand Surgery Tray state
   const [pinnedSymbolIds, setPinnedSymbolIds] = useState<string[]>(
     activeChapter.default_pinned_symbols
   );
@@ -70,7 +97,6 @@ export const App: React.FC = () => {
   );
   const [symbolProvenance, setSymbolProvenance] = useState<string>("");
 
-  // Personal Knowledge Graph (IndexedDB)
   const [personalGraph, setPersonalGraph] = useState<PersonalGraphStore>({
     nodes: [],
     edges: [],
@@ -82,31 +108,28 @@ export const App: React.FC = () => {
   const [isSprouting, setIsSprouting] = useState<boolean>(false);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
 
-  // Load personal graph from IndexedDB on mount
   useEffect(() => {
     void loadPersonalGraph().then(setPersonalGraph);
   }, []);
 
-  // Sync theme attribute on <html>
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  // Reset slice, frame, and default pinned symbols when switching chapter
   const handleSelectChapter = useCallback((cid: string) => {
     const nextCh =
       KERNEL_BUNDLE.chapters.find((c) => c.chapter_id === cid) ??
       KERNEL_BUNDLE.chapters[0];
+    const nextFrames = KERNEL_BUNDLE.probes[nextCh.chapter_id].trace.frames;
     setActiveChapterId(nextCh.chapter_id);
     setActiveSliceId(nextCh.default_slice_id);
     setPinnedSymbolIds(nextCh.default_pinned_symbols);
     setActiveSymbolId(nextCh.default_pinned_symbols[0]);
     setSymbolProvenance("");
-    setFrameIndex(1);
+    setFrameIndex(pickSignatureFrame(nextFrames));
     setIsAutoPlaying(false);
   }, []);
 
-  // Auto-play timer
   useEffect(() => {
     if (!isAutoPlaying) return;
     const id = window.setInterval(() => {
@@ -121,7 +144,6 @@ export const App: React.FC = () => {
     return () => window.clearInterval(id);
   }, [isAutoPlaying, frames.length]);
 
-  // Keyboard arrow stepping (← / →)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
@@ -141,7 +163,6 @@ export const App: React.FC = () => {
 
   const handleJumpToPhase = useCallback(
     (phaseId: string) => {
-      // Search forward from current frame first, then wrap around
       const forwardIdx = frames.findIndex(
         (f, i) => i > frameIndex && f.lifecycle_phase === phaseId
       );
@@ -183,7 +204,6 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  // Core Knowledge Graph Sprouting Handler (Tree Growth + Dashed Cross-Link Closure)
   const handleSproutQuestion = useCallback(
     async (
       parentNodeId: string,
@@ -236,7 +256,6 @@ export const App: React.FC = () => {
           },
         ];
 
-        // Automatically cross-link referenced SymbolBlueprints (closing Tree into Knowledge Graph!)
         for (const symId of sprout.referenced_symbols ?? []) {
           if (KERNEL_BUNDLE.symbols[symId]) {
             newEdges.push({
@@ -249,7 +268,6 @@ export const App: React.FC = () => {
           }
         }
 
-        // Automatically cross-link referenced ConceptCards
         for (const cid of sprout.referenced_concepts ?? []) {
           const card = KERNEL_BUNDLE.concepts[cid];
           if (card) {
@@ -303,9 +321,10 @@ export const App: React.FC = () => {
 
   const handleEndorseNode = useCallback(
     (node: ExtendedGraphNode) => {
-      const parentEdge = [...KERNEL_BUNDLE.public_graph.edges, ...personalGraph.edges].find(
-        (e) => e.target === node.id && e.style === "solid"
-      );
+      const parentEdge = [
+        ...KERNEL_BUNDLE.public_graph.edges,
+        ...personalGraph.edges,
+      ].find((e) => e.target === node.id && e.style === "solid");
       void endorseBranchToCommunity(node.log_id, parentEdge?.source ?? "");
       setPersonalGraph((prev) => {
         const updated = {
@@ -368,9 +387,13 @@ export const App: React.FC = () => {
       <TopGpsBar
         meta={KERNEL_BUNDLE.meta}
         chapters={KERNEL_BUNDLE.chapters}
-        activeChapterId={activeChapter.chapter_id}
+        activeChapter={activeChapter}
         onSelectChapter={handleSelectChapter}
-        currentFrame={currentFrame}
+        frames={frames}
+        frameIndex={frameIndex}
+        onChangeFrameIndex={setFrameIndex}
+        isAutoPlaying={isAutoPlaying}
+        onToggleAutoPlay={() => setIsAutoPlaying((p) => !p)}
         topology={activeProbe.trace.topology}
         onJumpToPhase={handleJumpToPhase}
         activeLenses={activeLenses}
@@ -425,9 +448,7 @@ export const App: React.FC = () => {
             onTogglePinSymbol={handleTogglePinSymbol}
             frames={frames}
             frameIndex={frameIndex}
-            onChangeFrameIndex={setFrameIndex}
-            isAutoPlaying={isAutoPlaying}
-            onToggleAutoPlay={() => setIsAutoPlaying((p) => !p)}
+            topologyNodes={activeProbe.trace.topology.nodes}
           />
         </main>
       )}
@@ -436,9 +457,14 @@ export const App: React.FC = () => {
         fallback={
           <div
             className="canvas-stage"
-            style={{ alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}
+            style={{
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--ink-muted)",
+              fontSize: 12,
+            }}
           >
-            正在加载 ELK 自动有向图排版引擎...
+            Computing DAG layout...
           </div>
         }
       >
@@ -458,7 +484,7 @@ export const App: React.FC = () => {
             onEndorseNode={handleEndorseNode}
             onClearPersonalChapterBranches={handleClearPersonalChapterBranches}
             onPinSymbolAndReturn={(symId) => {
-              handleInspectSymbol(symId, "从生长画布钉回手边托盘");
+              handleInspectSymbol(symId, "Pinned from Semantic Canvas");
               setGear("workbench");
             }}
             onBackToWorkbench={() => setGear("workbench")}
@@ -476,7 +502,7 @@ export const App: React.FC = () => {
             onTeleportToChapter={(cid, symId) => {
               handleSelectChapter(cid);
               if (symId) {
-                handleInspectSymbol(symId, "从全局内核星图定位至此");
+                handleInspectSymbol(symId, "Selected from Global Atlas");
               }
               setGear("workbench");
             }}

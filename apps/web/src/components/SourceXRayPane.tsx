@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Code2, Eye, FoldVertical, Layers, Sparkles } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { ZoomLevel } from "@langgraph-xray/schema";
 import type {
   ProbeBundle,
@@ -64,6 +64,15 @@ const HOVER_MEMORY_KEYS: Record<string, keyof TraceFrame["memory_snapshot"]> = {
   scratchpad: "scratchpad",
 };
 
+function shortTabName(slice: SourceSlice): string {
+  const base = slice.primary_file.split("/").pop() ?? slice.slice_id;
+  if (slice.slice_id === "channels_core") return "channels/*.py";
+  if (slice.slice_id === "send_command_write") return "types.py & _write.py";
+  if (slice.slice_id === "interrupt_scratchpad") return "interrupt()";
+  if (slice.slice_id === "checkpoint_saver") return "checkpoint/base.py";
+  return base;
+}
+
 export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
   availableSlices,
   activeSliceId,
@@ -92,9 +101,9 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
     fileRef: string;
   } | null>(null);
 
+  const codeViewportRef = useRef<HTMLDivElement | null>(null);
   const firstHighlightRowRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-switch slice if currentFrame's anchor file matches another slice in availableSlices
   useEffect(() => {
     const targetFile = currentFrame.source_anchor.file;
     const matchingSlice = availableSlices.find((sl) =>
@@ -111,11 +120,11 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
   }, [currentFrame, availableSlices, activeSliceId, onSelectSlice]);
 
   useEffect(() => {
-    if (firstHighlightRowRef.current && (zoomLevel === "L2" || zoomLevel === "L3")) {
-      firstHighlightRowRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+    const container = codeViewportRef.current;
+    const row = firstHighlightRowRef.current;
+    if (container && row && (zoomLevel === "L2" || zoomLevel === "L3")) {
+      const targetTop = Math.max(0, row.offsetTop - container.clientHeight * 0.22);
+      container.scrollTo({ top: targetTop, behavior: "auto" });
     }
   }, [currentFrame.frame_id, activeSliceId, zoomLevel]);
 
@@ -151,24 +160,25 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
         segments.push(
           <span
             key={key}
-            className={semLink.inferred_local ? "code-tok-local" : "code-tok-sym"}
+            className={semLink.inferred_local ? "tok-var" : "tok-class"}
+            style={{ color: semLink.inferred_local ? undefined : "var(--syn-fn)" }}
             title={
               semLink.inferred_local
-                ? `局部变量 ${tok} → 离线 Jedi 推导为 ${shortSym} (点击在手边展开)`
-                : `核心类型 ${tok} (点击在手边展开静态契约)`
+                ? `${tok} → ${shortSym} (Jedi inferred)`
+                : `${tok} · Static Blueprint`
             }
             onClick={() =>
               onInspectSymbol(
                 semLink.target_symbol,
                 semLink.inferred_local
-                  ? `局部变量 \`${tok}\` (${block.file_path.split("/").pop()}:L${lineNumber}) → 静态推导为 ${shortSym}`
-                  : `类型定义 \`${tok}\` (${block.file_path.split("/").pop()}:L${lineNumber})`
+                  ? `${tok} → ${shortSym} · ${block.file_path.split("/").pop()}:${lineNumber}`
+                  : `${tok} · ${block.file_path.split("/").pop()}:${lineNumber}`
               )
             }
             onMouseEnter={(e) => {
               if (zoomLevel === "L3" && memField) {
                 setHoveredVar({
-                  name: `${tok} (当前帧实时内存)`,
+                  name: tok,
                   valueJson: JSON.stringify(
                     currentFrame.memory_snapshot[memField],
                     null,
@@ -186,7 +196,7 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
         );
       } else if (PY_KEYWORDS.has(tok)) {
         segments.push(
-          <span key={key} style={{ color: "var(--syn-kw)", fontWeight: 500 }}>
+          <span key={key} style={{ color: "var(--syn-kw)" }}>
             {tok}
           </span>
         );
@@ -203,7 +213,7 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
 
     if (commentPart) {
       segments.push(
-        <span key="cmt" style={{ color: "var(--syn-cmt)", fontStyle: "italic" }}>
+        <span key="cmt" style={{ color: "var(--syn-cmt)" }}>
           {commentPart}
         </span>
       );
@@ -229,12 +239,12 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
           rows.push(
             <div
               key={`fold_${foldKey}`}
-              className="fold-capsule-row"
+              className="zed-fold-pill"
               onClick={() => toggleFold(foldKey)}
-              title="点击原地展开此段工程旁支代码"
+              title="点击展开折叠的工程胶水代码"
             >
-              <FoldVertical size={12} color="var(--accent-teal)" />
-              <span>[+] {fold.summary_label}</span>
+              <ChevronRight size={12} strokeWidth={1.6} />
+              <span>{fold.summary_label}</span>
             </div>
           );
           idx += Math.max(1, fold.end_line - fold.start_line + 1);
@@ -250,9 +260,9 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
         <div
           key={lineNum}
           ref={attachRef ? firstHighlightRowRef : undefined}
-          className={`code-line-row ${isHighlighted ? "active-anchor" : ""}`}
+          className={`code-row ${isHighlighted ? "exec-line" : ""}`}
         >
-          <span className="line-num">{lineNum}</span>
+          <span className="gutter-num">{lineNum}</span>
           <span style={{ whiteSpace: "pre", userSelect: "text" }}>
             {renderTokenizedLine(block.lines[idx], lineNum, block)}
           </span>
@@ -265,28 +275,51 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
   };
 
   return (
-    <section className="pane-col" aria-label="分层可观测源码视窗">
-      {/* Header: Zoom Level Switcher */}
-      <div className="pane-header" style={{ flexWrap: "wrap" }}>
-        <div className="pane-title">
-          <Code2 size={14} color="var(--accent-teal)" />
-          <span>真实内核源码视窗</span>
+    <section className="pane-col" aria-label="真实内核源码视窗">
+      {/* Unified 36px Zed-Style Editor Tab + Zoom Bar */}
+      <div className="col-bar" style={{ paddingLeft: 6 }}>
+        <div className="editor-tabs" role="tablist">
+          {availableSlices.map((sl) => (
+            <button
+              key={sl.slice_id}
+              type="button"
+              role="tab"
+              aria-selected={sl.slice_id === activeSlice.slice_id}
+              className={`editor-tab mono ${
+                sl.slice_id === activeSlice.slice_id ? "active" : ""
+              }`}
+              onClick={() => onSelectSlice(sl.slice_id)}
+              title={sl.title}
+            >
+              {shortTabName(sl)}
+            </button>
+          ))}
         </div>
 
-        <div className="segmented-group" role="tablist" aria-label="源码复杂度缩放层级">
+        <div className="seg-control" style={{ height: 24 }} role="tablist">
           {(
             [
-              ["L0", "L0 概念Diff"],
-              ["L1", "L1 算法骨架"],
-              ["L2", "L2 核心降噪"],
-              ["L3", "L3 全量显微镜"],
+              ["L0", "L0"],
+              ["L1", "L1"],
+              ["L2", "L2"],
+              ["L3", "L3"],
             ] as Array<[ZoomLevel, string]>
           ).map(([lvl, label]) => (
             <button
               key={lvl}
               id={`zoom-btn-${lvl}`}
               type="button"
-              className={`seg-btn ${zoomLevel === lvl ? "active" : ""}`}
+              title={
+                lvl === "L0"
+                  ? "L0 业务探针与前后 State Diff"
+                  : lvl === "L1"
+                    ? "L1 纯净核心算法骨架"
+                    : lvl === "L2"
+                      ? "L2 真实源码 + 工程胶水自动折叠 (推荐)"
+                      : "L3 100% 全量源码 + 变量悬停内存显微镜"
+              }
+              className={`seg-item mono ${zoomLevel === lvl ? "active" : ""}`}
+              style={{ height: 18, padding: "0 7px", fontSize: 11 }}
               onClick={() => onChangeZoom(lvl)}
             >
               {label}
@@ -295,137 +328,102 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
         </div>
       </div>
 
-      {/* Subbar: Kernel File Slice Tabs + Legend */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          padding: "5px 10px",
-          background: "var(--bg-canvas)",
-          borderBottom: "1px solid var(--border-subtle)",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          {availableSlices.map((sl) => (
-            <button
-              key={sl.slice_id}
-              type="button"
-              className={`lens-btn ${sl.slice_id === activeSlice.slice_id ? "on" : ""}`}
-              onClick={() => onSelectSlice(sl.slice_id)}
-            >
-              {sl.title}
-            </button>
-          ))}
-        </div>
-        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-          点 <span className="code-tok-sym">类名</span> 或{" "}
-          <span className="code-tok-local">局部变量</span> 零跳转查结构
-        </span>
-      </div>
-
-      {/* Main Code Body by ZoomLevel */}
       {zoomLevel === "L0" ? (
-        <div className="pane-scroll" style={{ background: "var(--bg-code)" }}>
-          <div style={{ marginBottom: 12 }}>
-            <div
-              style={{
-                fontSize: 11.5,
-                fontWeight: 600,
-                color: "var(--accent-teal)",
-                marginBottom: 6,
-              }}
-            >
-              <Layers size={12} style={{ verticalAlign: "middle", marginRight: 4 }} />
-              L0 概念视角：本关确定性 Python 探针图定义
-            </div>
-            <pre
-              className="mono"
-              style={{
-                margin: 0,
-                padding: 12,
-                borderRadius: 6,
-                background: "var(--bg-panel)",
-                border: "1px solid var(--border-subtle)",
-                overflowX: "auto",
-                fontSize: 12,
-                lineHeight: 1.6,
-              }}
-            >
-              {probe.l0_view.probe_code}
-            </pre>
+        <div className="pane-scroll" style={{ background: "var(--bg-code)", padding: 20 }}>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>
+            L0 · DETERMINISTIC PROBE GRAPH
           </div>
+          <pre
+            className="mono"
+            style={{
+              margin: "0 0 20px",
+              padding: "14px 16px",
+              borderRadius: 8,
+              background: "var(--bg-panel)",
+              border: "1px solid var(--hairline)",
+              overflowX: "auto",
+              fontSize: 12,
+              lineHeight: 1.65,
+              color: "var(--ink)",
+            }}
+          >
+            {probe.l0_view.probe_code}
+          </pre>
 
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: 10,
+              gap: 12,
             }}
           >
             <div
               style={{
-                padding: 10,
-                borderRadius: 6,
+                padding: "12px 14px",
+                borderRadius: 8,
                 background: "var(--bg-panel)",
-                border: "1px solid var(--border-subtle)",
+                border: "1px solid var(--hairline)",
               }}
             >
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
-                执行前输入快照 (Input State)
+              <div className="eyebrow" style={{ marginBottom: 6 }}>
+                INPUT STATE
               </div>
-              <pre className="mono" style={{ margin: 0, fontSize: 11.5, overflowX: "auto" }}>
+              <pre
+                className="mono"
+                style={{
+                  margin: 0,
+                  fontSize: 11.5,
+                  color: "var(--ink-secondary)",
+                  overflowX: "auto",
+                }}
+              >
                 {JSON.stringify(probe.l0_view.input_state, null, 2)}
               </pre>
             </div>
             <div
               style={{
-                padding: 10,
-                borderRadius: 6,
+                padding: "12px 14px",
+                borderRadius: 8,
                 background: "var(--bg-panel)",
-                border: "1px solid var(--accent-emerald)",
+                border: "1px solid var(--hairline-strong)",
               }}
             >
               <div
+                className="eyebrow"
+                style={{ marginBottom: 6, color: "var(--sig-green)" }}
+              >
+                CONVERGED OUTPUT
+              </div>
+              <pre
+                className="mono"
                 style={{
-                  fontSize: 11,
-                  color: "var(--accent-emerald)",
-                  fontWeight: 600,
-                  marginBottom: 4,
+                  margin: 0,
+                  fontSize: 11.5,
+                  color: "var(--ink)",
+                  overflowX: "auto",
                 }}
               >
-                执行后收敛状态 (Output State)
-              </div>
-              <pre className="mono" style={{ margin: 0, fontSize: 11.5, overflowX: "auto" }}>
                 {JSON.stringify(probe.l0_view.output_state, null, 2)}
               </pre>
             </div>
           </div>
         </div>
       ) : zoomLevel === "L1" ? (
-        <div className="pane-scroll" style={{ background: "var(--bg-code)" }}>
-          <div
-            style={{
-              fontSize: 11.5,
-              color: "var(--accent-amber)",
-              fontWeight: 600,
-              marginBottom: 8,
-            }}
-          >
-            L1 纯净算法骨架（剥离 70% 异步/回调/缓存工程胶水后的核心状态机灵魂）
+        <div className="pane-scroll" style={{ background: "var(--bg-code)", padding: 20 }}>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>
+            L1 · DISTILLED ALGORITHMIC SKELETON
           </div>
           <pre
             className="mono"
             style={{
               margin: 0,
-              padding: 14,
-              borderRadius: 6,
+              padding: "16px 18px",
+              borderRadius: 8,
               background: "var(--bg-panel)",
-              border: "1px solid var(--border-subtle)",
+              border: "1px solid var(--hairline)",
               fontSize: 12.2,
-              lineHeight: 1.68,
+              lineHeight: 1.72,
+              color: "var(--ink)",
               overflowX: "auto",
             }}
           >
@@ -434,16 +432,17 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
         </div>
       ) : (
         <div
-          className="code-surface"
+          ref={codeViewportRef}
+          className="code-viewport"
           onScroll={() => setCodeSelection(null)}
           onMouseUp={(e) => {
             const sel = window.getSelection()?.toString().trim() ?? "";
             if (sel.length >= 3 && sel.length <= 320) {
               setCodeSelection({
-                x: Math.min(window.innerWidth - 260, Math.max(20, e.clientX - 50)),
+                x: Math.min(window.innerWidth - 220, Math.max(20, e.clientX - 50)),
                 y: Math.max(54, e.clientY - 40),
                 text: sel,
-                fileRef: `${activeSlice.primary_file}`,
+                fileRef: activeSlice.primary_file,
               });
             } else {
               setCodeSelection(null);
@@ -453,34 +452,26 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
           {zoomLevel === "L3" && (
             <div
               style={{
-                margin: "0 12px 8px",
-                padding: "5px 10px",
-                borderRadius: 5,
-                background: "var(--accent-teal-soft)",
-                color: "var(--accent-teal)",
-                fontSize: 11.5,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
+                padding: "4px 16px 8px",
+                borderBottom: "1px solid var(--hairline)",
+                marginBottom: 4,
+                fontSize: 11,
+                color: "var(--ink-muted)",
               }}
             >
-              <Eye size={13} />
-              <span>
-                L3 显微镜已开启：已展开全部折叠块，鼠标悬停在源码中的{" "}
-                <code>checkpoint</code> / <code>channels</code> / <code>tasks</code> /{" "}
-                <code>scratchpad</code> 上即可透视当前帧内存。
-              </span>
+              L3 Unfolded · 悬停源码中的变量标识符可实时检视当前超步内存快照
             </div>
           )}
 
           {activeSlice.blocks.map((block) => (
             <div key={block.qualname}>
-              <div className="code-block-divider">
-                <span className="mono" style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="symbol-scope-header mono">
+                <span style={{ color: "var(--ink)", fontWeight: 500 }}>
                   {block.qualname}
                 </span>
-                <span className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                  {block.file_path} · L{block.start_line}-L{block.end_line}
+                <span style={{ color: "var(--ink-faint)" }}>
+                  {block.file_path.replace("libs/langgraph/", "")}:{block.start_line}–
+                  {block.end_line}
                 </span>
               </div>
               {renderBlockLines(block)}
@@ -489,50 +480,40 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
         </div>
       )}
 
-      {/* L3 Hover Live Memory Microscope Tooltip */}
       {hoveredVar && zoomLevel === "L3" && (
         <div
           style={{
             position: "fixed",
             left: hoveredVar.x,
             top: hoveredVar.y,
-            zIndex: 90,
+            zIndex: 95,
             width: 300,
             maxHeight: 210,
             overflow: "auto",
-            background: "var(--bg-panel)",
-            border: "1px solid var(--accent-teal)",
-            borderRadius: 6,
-            padding: 9,
-            boxShadow: "var(--shadow-float)",
+            background: "var(--bg-popover)",
+            borderRadius: 8,
+            padding: "10px 12px",
+            boxShadow: "var(--shadow-popover)",
             pointerEvents: "none",
           }}
         >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--accent-teal)",
-              marginBottom: 4,
-            }}
-          >
-            🔬 {hoveredVar.name}
+          <div className="eyebrow" style={{ marginBottom: 6 }}>
+            LIVE MEMORY · {hoveredVar.name}
           </div>
-          <pre className="mono" style={{ margin: 0, fontSize: 11 }}>
+          <pre className="mono" style={{ margin: 0, fontSize: 11, color: "var(--ink)" }}>
             {hoveredVar.valueJson}
           </pre>
         </div>
       )}
 
-      {/* Code Selection Sprout Floating Pill */}
       {codeSelection && (
         <div
-          className="selection-floating-bar"
+          className="selection-pill"
           style={{ left: codeSelection.x, top: codeSelection.y }}
         >
           <button
             type="button"
-            className="seg-btn active"
+            className="primary-cta"
             onClick={() => {
               const { text, fileRef } = codeSelection;
               setCodeSelection(null);
@@ -540,8 +521,7 @@ export const SourceXRayPane: React.FC<SourceXRayPaneProps> = ({
               onSproutFromCode(text, fileRef);
             }}
           >
-            <Sparkles size={12} />
-            🌱 锚定选中源码推入画布追问
+            锚定代码推入画布追问 ↗
           </button>
         </div>
       )}

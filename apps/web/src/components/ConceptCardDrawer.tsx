@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Play, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, Play, X } from "lucide-react";
 import type { ConceptCardConfig } from "../types/bundle";
 
 declare global {
@@ -31,9 +31,7 @@ export const ConceptCardDrawer: React.FC<ConceptCardDrawerProps> = ({
     card.tier2_slice.type === "python_sandbox" ? card.tier2_slice.minimal_code : ""
   );
   const [stdout, setStdout] = useState(
-    card.tier2_slice.type === "python_sandbox"
-      ? `# 预期标准输出:\n${card.tier2_slice.expected_stdout}`
-      : ""
+    card.tier2_slice.type === "python_sandbox" ? card.tier2_slice.expected_stdout : ""
   );
   const [runningPy, setRunningPy] = useState(false);
 
@@ -41,13 +39,13 @@ export const ConceptCardDrawer: React.FC<ConceptCardDrawerProps> = ({
     setTier(1);
     if (card.tier2_slice.type === "python_sandbox") {
       setSandboxCode(card.tier2_slice.minimal_code);
-      setStdout(`# 预期标准输出:\n${card.tier2_slice.expected_stdout}`);
+      setStdout(card.tier2_slice.expected_stdout);
     }
   }, [card]);
 
   const runInBrowserPyodide = async () => {
     setRunningPy(true);
-    setStdout("正在按需加载浏览器端 Pyodide (WebAssembly Python 3.12)...");
+    setStdout("Initializing Pyodide (WebAssembly Python 3.12)...");
     try {
       if (!window.__pyodideInstance) {
         if (!window.loadPyodide) {
@@ -55,7 +53,7 @@ export const ConceptCardDrawer: React.FC<ConceptCardDrawerProps> = ({
             const s = document.createElement("script");
             s.src = "https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js";
             s.onload = () => resolve();
-            s.onerror = () => reject(new Error("Pyodide CDN unavailable"));
+            s.onerror = () => reject(new Error("CDN unreachable"));
             document.head.appendChild(s);
           });
         }
@@ -68,120 +66,129 @@ export const ConceptCardDrawer: React.FC<ConceptCardDrawerProps> = ({
         batched: (msg: string) => lines.push(msg),
       });
       await window.__pyodideInstance.runPythonAsync(sandboxCode);
-      setStdout(lines.join("\n") || "(执行完成，无标准输出)");
+      setStdout(lines.join("\n") || "(exit 0)");
     } catch {
       if (card.tier2_slice.type === "python_sandbox") {
-        setStdout(
-          `[离线沙盒验证结果 · $0 后端算力]\n${card.tier2_slice.expected_stdout}`
-        );
+        setStdout(card.tier2_slice.expected_stdout);
       }
     } finally {
       setRunningPy(false);
     }
   };
 
-  const lensBadge =
+  const lensEyebrow =
     card.lens === "pregel_paper"
-      ? "📄 Google Pregel (2010) 论文溯源"
+      ? "PAPER · GOOGLE PREGEL (SIGMOD '10)"
       : card.lens === "python_syntax"
-        ? "🐍 Python 高阶语法透视"
-        : "🔗 LangChain Runnable 控制面契约";
+        ? "PYTHON · RUNTIME MECHANISM"
+        : "CONTRACT · LANGCHAIN RUNNABLE";
 
   return (
-    <div className="concept-drawer-card" role="region" aria-label={card.title}>
+    <div className="concept-inline-panel" role="region" aria-label={card.title}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           gap: 8,
-          marginBottom: 8,
+          marginBottom: 10,
         }}
       >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--accent-amber)",
-          }}
-        >
-          {lensBadge}
-        </span>
+        <span className="eyebrow">{lensEyebrow}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div className="segmented-group">
+          <div className="seg-control" style={{ height: 24 }}>
             <button
               type="button"
-              className={`seg-btn ${tier === 1 ? "active" : ""}`}
+              className={`seg-item ${tier === 1 ? "active" : ""}`}
+              style={{ height: 18, fontSize: 11, padding: "0 8px" }}
               onClick={() => setTier(1)}
             >
-              Tier 1 · 3秒扫盲
+              Overview
             </button>
             <button
               type="button"
-              className={`seg-btn ${tier === 2 ? "active" : ""}`}
+              className={`seg-item ${tier === 2 ? "active" : ""}`}
+              style={{ height: 18, fontSize: 11, padding: "0 8px" }}
               onClick={() => setTier(2)}
             >
-              Tier 2 · {card.tier2_slice.type === "paper_bridge" ? "论文对照" : "微沙盒"}
+              {card.tier2_slice.type === "paper_bridge" ? "Paper Quote" : "Playground"}
             </button>
           </div>
           <button
             type="button"
-            className="icon-btn"
+            className="ghost-icon-btn"
+            style={{ width: 24, height: 24 }}
             onClick={onClose}
-            aria-label="关闭概念卡片"
+            aria-label="Close"
           >
-            <X size={12} />
+            <X size={13} strokeWidth={1.5} />
           </button>
         </div>
       </div>
 
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+      <div
+        style={{
+          fontSize: 13.5,
+          fontWeight: 600,
+          letterSpacing: "-0.01em",
+          marginBottom: 8,
+          color: "var(--ink)",
+        }}
+      >
         {card.title}
       </div>
 
       {tier === 1 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-          <p style={{ margin: 0, color: "var(--text-primary)", fontSize: 12.5 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 12.8,
+              lineHeight: 1.65,
+              color: "var(--ink-secondary)",
+            }}
+          >
             {card.tier1_tldr}
           </p>
           <div
             style={{
-              padding: "6px 9px",
-              borderRadius: 5,
-              background: "var(--bg-elevated)",
-              color: "var(--text-secondary)",
+              paddingTop: 8,
+              borderTop: "1px solid var(--hairline)",
               fontSize: 12,
+              color: "var(--ink-muted)",
             }}
           >
-            <strong>跨语言直觉类比：</strong> {card.tier1_analogy}
+            <span style={{ color: "var(--ink)", fontWeight: 500 }}>跨语言对照：</span>
+            {card.tier1_analogy}
           </div>
         </div>
       ) : card.tier2_slice.type === "paper_bridge" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12 }}>
-          <div style={{ color: "var(--text-muted)", fontSize: 11 }}>
-            出处：{card.tier2_slice.citation}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="mono" style={{ fontSize: 11, color: "var(--ink-faint)" }}>
+            {card.tier2_slice.citation}
           </div>
           <blockquote
             style={{
               margin: 0,
-              padding: "7px 10px",
-              borderLeft: "2.5px solid var(--accent-amber)",
-              background: "var(--bg-elevated)",
+              paddingLeft: 12,
+              borderLeft: "1.5px solid var(--ink-muted)",
               fontStyle: "italic",
-              color: "var(--text-primary)",
+              fontSize: 12.5,
+              lineHeight: 1.6,
+              color: "var(--ink)",
             }}
           >
             “{card.tier2_slice.original_quote}”
           </blockquote>
-          <div style={{ color: "var(--text-secondary)" }}>
-            <strong style={{ color: "var(--accent-teal)" }}>LangGraph 工程演进差异：</strong>
+          <div style={{ fontSize: 12.5, lineHeight: 1.62, color: "var(--ink-secondary)" }}>
+            <span style={{ color: "var(--ink)", fontWeight: 500 }}>工程演进差异：</span>
             {card.tier2_slice.langgraph_adaptation}
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <textarea
-            aria-label="Python 微沙盒代码编辑器"
+            aria-label="Python 微沙盒代码"
             className="mono"
             value={sandboxCode}
             onChange={(e) => setSandboxCode(e.target.value)}
@@ -189,39 +196,37 @@ export const ConceptCardDrawer: React.FC<ConceptCardDrawerProps> = ({
             style={{
               width: "100%",
               background: "var(--bg-code)",
-              color: "var(--text-primary)",
-              border: "1px solid var(--border-strong)",
-              borderRadius: 5,
-              padding: 8,
-              fontSize: 11.5,
-              lineHeight: 1.5,
+              color: "var(--ink)",
+              border: "1px solid var(--hairline-strong)",
+              borderRadius: 6,
+              padding: "8px 10px",
+              fontSize: 11.8,
+              lineHeight: 1.55,
               resize: "vertical",
+              outline: "none",
             }}
           />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span className="eyebrow">STDOUT · WASM PYTHON</span>
             <button
               type="button"
-              className="icon-btn"
+              className="subtle-btn"
               onClick={runInBrowserPyodide}
               disabled={runningPy}
-              style={{
-                borderColor: "var(--accent-teal)",
-                color: "var(--accent-teal)",
-                fontWeight: 600,
-              }}
             >
-              <Play size={11} />
-              {runningPy ? "运行中..." : "在浏览器运行 Python (Pyodide · $0 算力)"}
+              <Play size={11} strokeWidth={1.6} />
+              {runningPy ? "Running..." : "Run in Browser"}
             </button>
           </div>
           <pre
             className="mono"
             style={{
               margin: 0,
-              padding: "6px 9px",
-              borderRadius: 5,
-              background: "var(--bg-elevated)",
-              color: "var(--accent-emerald)",
+              padding: "7px 10px",
+              borderRadius: 6,
+              background: "var(--bg-code)",
+              border: "1px solid var(--hairline)",
+              color: "var(--sig-green)",
               fontSize: 11.5,
               overflowX: "auto",
             }}
@@ -233,9 +238,9 @@ export const ConceptCardDrawer: React.FC<ConceptCardDrawerProps> = ({
 
       <div
         style={{
-          marginTop: 9,
-          paddingTop: 7,
-          borderTop: "1px solid var(--border-subtle)",
+          marginTop: 12,
+          paddingTop: 9,
+          borderTop: "1px solid var(--hairline)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -243,25 +248,41 @@ export const ConceptCardDrawer: React.FC<ConceptCardDrawerProps> = ({
       >
         <button
           type="button"
-          className="seg-btn"
-          style={{ padding: "2px 6px", color: "var(--accent-amber)" }}
           onClick={() => setTier(tier === 1 ? 2 : 1)}
+          style={{
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            fontSize: 11.5,
+            color: "var(--ink-muted)",
+            cursor: "pointer",
+          }}
         >
-          {tier === 1 ? "展开 Tier 2 深度切片 →" : "← 返回 Tier 1 摘要"}
+          {tier === 1 ? "查看深度切片 →" : "← 返回摘要"}
         </button>
+
         <button
           type="button"
-          className="seg-btn"
-          style={{ padding: "2px 7px", color: "var(--accent-teal)" }}
           onClick={() =>
             onSproutInCanvas(
               `深入剖析「${card.title}」在当前关卡源码中的边界行为与设计取舍`,
               card.concept_id
             )
           }
+          style={{
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            fontSize: 11.5,
+            fontWeight: 500,
+            color: "var(--ink)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            cursor: "pointer",
+          }}
         >
-          <Sparkles size={12} />
-          Tier 3 · 推入生长画布派生分支
+          在生长画布继续派生 <ArrowUpRight size={12} strokeWidth={1.6} />
         </button>
       </div>
     </div>

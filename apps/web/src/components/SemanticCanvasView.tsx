@@ -13,10 +13,9 @@ import {
 import ELK from "elkjs/lib/elk.bundled.js";
 import {
   ArrowLeft,
-  FolderTree,
+  CornerDownRight,
   Pin,
-  Send,
-  Sparkles,
+  Plus,
   ThumbsUp,
   Trash2,
 } from "lucide-react";
@@ -29,6 +28,7 @@ import type {
   SuggestedSpark,
   TraceFrame,
 } from "../types/bundle";
+import { InlineMarkdown } from "./InlineMarkdown";
 
 const elk = new ELK();
 
@@ -42,27 +42,43 @@ interface CanvasCardData extends Record<string, unknown> {
   onEndorseNode: (node: ExtendedGraphNode) => void;
 }
 
-const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({ data }) => {
-  const { kgNode, collapsed, hasChildren, onToggleCollapse, onSparkClick, onPinSymbol, onEndorseNode } =
-    data;
+const KIND_META: Record<string, { eyebrow: string; dotColor: string }> = {
+  spine: { eyebrow: "SPINE ANCHOR", dotColor: "var(--sig-blue)" },
+  insight: { eyebrow: "INSIGHT", dotColor: "var(--sig-green)" },
+  symbol: { eyebrow: "SYMBOL CONTRACT", dotColor: "var(--ink-muted)" },
+  theory: { eyebrow: "PAPER · SIGMOD '10", dotColor: "var(--sig-amber)" },
+  syntax: { eyebrow: "PYTHON RUNTIME", dotColor: "var(--sig-amber)" },
+};
 
-  const badgeMap: Record<string, string> = {
-    spine: "⚓ 主脊柱锚点",
-    insight:
-      kgNode.visibility === "local_personal"
-        ? "🌱 个人探索分支 (IndexedDB)"
-        : "🌿 社区结晶支线",
-    symbol: "📌 自动互链静态契约",
-    theory: "📄 Pregel 论文节点",
-    syntax: "🐍 Python 语法节点",
+const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({
+  data,
+}) => {
+  const {
+    kgNode,
+    collapsed,
+    hasChildren,
+    onToggleCollapse,
+    onSparkClick,
+    onPinSymbol,
+    onEndorseNode,
+  } = data;
+
+  const meta = KIND_META[kgNode.kind] ?? {
+    eyebrow: kgNode.kind.toUpperCase(),
+    dotColor: "var(--ink-muted)",
   };
 
   return (
-    <div className={`rf-node-card ${kgNode.kind}`}>
+    <div className={`kg-card ${kgNode.kind === "spine" ? "spine" : ""}`}>
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: "var(--accent-teal)", width: 7, height: 7 }}
+        style={{
+          background: "var(--bg-surface-3)",
+          border: "1px solid var(--ink-muted)",
+          width: 6,
+          height: 6,
+        }}
       />
 
       <div
@@ -70,73 +86,55 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({ data
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: 4,
           gap: 6,
         }}
       >
-        <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)" }}>
-          {badgeMap[kgNode.kind] ?? kgNode.kind}
+        <span
+          className="eyebrow"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+        >
+          <span className="dot" style={{ background: meta.dotColor }} />
+          {kgNode.visibility === "local_personal" ? "PERSONAL DRAFT" : meta.eyebrow}
         </span>
+
         {kgNode.heat_score !== undefined && kgNode.kind === "insight" && (
-          <span
-            className="mono"
-            style={{
-              fontSize: 10,
-              padding: "1px 5px",
-              borderRadius: 8,
-              background: "var(--accent-emerald-soft)",
-              color: "var(--accent-emerald)",
-            }}
-          >
-            🔥 {kgNode.heat_score}
+          <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>
+            +{kgNode.heat_score}
           </span>
         )}
       </div>
 
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: 12.5,
-          marginBottom: 5,
-          color: "var(--text-primary)",
-        }}
-      >
-        {kgNode.title}
+      <div className="kg-card-title">{kgNode.title}</div>
+      <div className="kg-card-body">
+        <InlineMarkdown text={kgNode.concise_markdown} />
       </div>
 
-      <div
-        style={{
-          fontSize: 11.5,
-          color: "var(--text-secondary)",
-          lineHeight: 1.55,
-        }}
-      >
-        {kgNode.concise_markdown}
-      </div>
-
-      {/* Follow-up 2nd/3rd-order Spark Branches */}
       {!collapsed && kgNode.suggested_sparks && kgNode.suggested_sparks.length > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div className="nodrag" style={{ marginTop: 8 }}>
           {kgNode.suggested_sparks.slice(0, 2).map((sp, i) => (
             <button
               key={i}
               type="button"
-              className="spark-btn nodrag"
+              className="spark-link"
               onClick={() => onSparkClick(kgNode.id, sp)}
             >
-              🌱 追问：{sp.label}
+              <CornerDownRight
+                size={11}
+                strokeWidth={1.5}
+                style={{ flexShrink: 0, marginTop: 2 }}
+              />
+              <span>{sp.label}</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Node Footer Actions */}
       <div
         className="nodrag"
         style={{
-          marginTop: 8,
-          paddingTop: 6,
-          borderTop: "1px solid var(--border-subtle)",
+          marginTop: 10,
+          paddingTop: 7,
+          borderTop: "1px solid var(--hairline)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -146,25 +144,39 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({ data
         {kgNode.kind === "symbol" ? (
           <button
             type="button"
-            className="icon-btn"
-            style={{ padding: "2px 6px", fontSize: 10.5 }}
             onClick={() => onPinSymbol(kgNode.id)}
+            style={{
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              fontSize: 11,
+              color: "var(--ink-muted)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              cursor: "pointer",
+            }}
           >
-            <Pin size={10} /> 钉回手边器械盘
+            <Pin size={11} strokeWidth={1.5} /> Pin to Tray
           </button>
         ) : kgNode.kind === "insight" ? (
           <button
             type="button"
-            className="icon-btn"
-            style={{
-              padding: "2px 6px",
-              fontSize: 10.5,
-              color: kgNode.endorsed ? "var(--accent-emerald)" : undefined,
-            }}
             onClick={() => onEndorseNode(kgNode)}
+            style={{
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              fontSize: 11,
+              color: kgNode.endorsed ? "var(--sig-green)" : "var(--ink-muted)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              cursor: "pointer",
+            }}
           >
-            <ThumbsUp size={10} />
-            {kgNode.endorsed ? "已推荐结晶" : "推荐共享至公共图谱"}
+            <ThumbsUp size={11} strokeWidth={1.5} />
+            {kgNode.endorsed ? "Endorsed" : "Endorse"}
           </button>
         ) : (
           <span />
@@ -173,12 +185,17 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({ data
         {hasChildren && (
           <button
             type="button"
-            className="icon-btn"
-            style={{ padding: "2px 6px", fontSize: 10.5 }}
             onClick={() => onToggleCollapse(kgNode.id)}
+            style={{
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              fontSize: 11,
+              color: "var(--ink-muted)",
+              cursor: "pointer",
+            }}
           >
-            <FolderTree size={10} />
-            {collapsed ? "展开子树" : "折叠子树"}
+            {collapsed ? "Expand" : "Collapse"}
           </button>
         )}
       </div>
@@ -186,7 +203,12 @@ const SemanticGraphCardNode: React.FC<NodeProps<Node<CanvasCardData>>> = ({ data
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: "var(--accent-teal)", width: 7, height: 7 }}
+        style={{
+          background: "var(--bg-surface-3)",
+          border: "1px solid var(--ink-muted)",
+          width: 6,
+          height: 6,
+        }}
       />
     </div>
   );
@@ -265,7 +287,6 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
     [chapter.chapter_id, onSproutQuestion]
   );
 
-  // Assemble chapter subgraph + materialize cross-linked SymbolNodes & ConceptNodes automatically
   const { graphNodes, graphEdges } = useMemo(() => {
     const chNodes = [
       ...publicNodes.filter((n) => n.chapter_id === chapter.chapter_id),
@@ -278,7 +299,6 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
       nodeMap.has(e.source)
     );
 
-    // Materialize referenced SymbolBlueprints & ConceptCards so dashed cross-links close into a true Graph
     rawEdges.forEach((e) => {
       if (!nodeMap.has(e.target)) {
         const sym = symbols[e.target];
@@ -288,11 +308,11 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
             kind: "symbol",
             visibility: "crystallized_public",
             chapter_id: chapter.chapter_id,
-            title: `${sym.kind} ${sym.name}`,
+            title: sym.name,
             concise_markdown: sym.fields
               .slice(0, 2)
-              .map((f) => `• ${f.name}: ${f.duty_cn}`)
-              .join(" "),
+              .map((f) => `${f.name.split(":")[0]}: ${f.duty_cn}`)
+              .join(" · "),
           });
         } else {
           const conc = concepts[e.target];
@@ -310,7 +330,6 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
       }
     });
 
-    // Respect collapsed subtrees along solid `evolves_to` edges
     const hiddenSet = new Set<string>();
     const solidChildren = new Map<string, string[]>();
     rawEdges.forEach((e) => {
@@ -337,11 +356,7 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
       (e) => visibleIds.has(e.source) && visibleIds.has(e.target)
     );
 
-    return {
-      graphNodes: visibleNodes,
-      graphEdges: visibleEdges,
-      solidChildrenMap: solidChildren,
-    };
+    return { graphNodes: visibleNodes, graphEdges: visibleEdges };
   }, [
     chapter.chapter_id,
     publicNodes,
@@ -353,7 +368,6 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
     collapsedIds,
   ]);
 
-  // Run ELK layered left-to-right auto-layout whenever graphNodes/graphEdges change
   useEffect(() => {
     let cancelled = false;
     const parentHasSolidChild = new Set(
@@ -368,14 +382,14 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
         layoutOptions: {
           "elk.algorithm": "layered",
           "elk.direction": "RIGHT",
-          "elk.layered.spacing.nodeNodeBetweenLayers": "95",
-          "elk.spacing.nodeNode": "36",
+          "elk.layered.spacing.nodeNodeBetweenLayers": "104",
+          "elk.spacing.nodeNode": "34",
           "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
         },
         children: graphNodes.map((n) => ({
           id: n.id,
-          width: n.kind === "spine" ? 295 : 280,
-          height: n.suggested_sparks?.length ? 215 : 155,
+          width: n.kind === "spine" ? 298 : 284,
+          height: n.suggested_sparks?.length ? 220 : 162,
         })),
         edges: graphEdges.map((e) => ({
           id: e.id,
@@ -411,28 +425,19 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
         id: e.id,
         source: e.source,
         target: e.target,
-        animated: e.style === "solid",
         style: {
           stroke:
-            e.style === "solid" ? "var(--accent-teal)" : "var(--accent-amber)",
-          strokeWidth: e.style === "solid" ? 1.8 : 1.3,
-          strokeDasharray: e.style === "dashed" ? "5 4" : undefined,
+            e.style === "solid" ? "var(--edge-solid)" : "var(--edge-dashed)",
+          strokeWidth: 1.25,
+          strokeDasharray: e.style === "dashed" ? "4 4" : undefined,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
+          width: 14,
+          height: 14,
           color:
-            e.style === "solid" ? "var(--accent-teal)" : "var(--accent-amber)",
+            e.style === "solid" ? "var(--edge-solid)" : "var(--edge-dashed)",
         },
-        label:
-          e.relation === "references_symbol"
-            ? "引用结构"
-            : e.relation === "grounds_in_theory"
-              ? "论文根源"
-              : e.relation === "uses_syntax"
-                ? "语法机制"
-                : undefined,
-        labelStyle: { fill: "var(--text-muted)", fontSize: 10 },
-        labelBgStyle: { fill: "var(--bg-canvas)", fillOpacity: 0.85 },
       }));
 
       setRfNodes(nextNodes);
@@ -470,8 +475,8 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
 
   const quickPrompts = [
     "如果并行分支其中一个抛异常，另一个已写入的结果会回滚吗？",
-    "对比 Google Pregel 2010 原版论文，这里做了什么工程改造？",
-    "这里的局部变量与底层 Channel 是如何配合实现零锁隔离的？",
+    "对比 Google Pregel 2010 原版论文，这里做了什么工程演进？",
+    "局部变量与底层 Channel 如何配合做到无锁读写隔离？",
   ];
 
   const chapterPersonalCount = personalNodes.filter(
@@ -480,129 +485,122 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
 
   return (
     <div className="canvas-stage" aria-label="受控自动生长语义画布">
-      {/* Left Docked Origin Spine Control Panel */}
-      <div
-        style={{
-          width: 310,
-          flexShrink: 0,
-          background: "var(--bg-panel)",
-          borderRight: "1px solid var(--border-subtle)",
-          display: "flex",
-          flexDirection: "column",
-          zIndex: 5,
-        }}
-      >
-        <div className="pane-header">
+      <aside className="canvas-sidebar">
+        <div className="col-bar">
           <button
             type="button"
-            className="icon-btn"
             onClick={onBackToWorkbench}
-          >
-            <ArrowLeft size={13} /> 返回聚焦解剖台
-          </button>
-          <span className="mono" style={{ fontSize: 11, color: "var(--accent-teal)" }}>
-            ELK 自动拓扑
-          </span>
-        </div>
-
-        <div className="pane-scroll" style={{ padding: 12 }}>
-          <div
             style={{
-              padding: 10,
-              borderRadius: 6,
-              background: "var(--bg-canvas)",
-              border: "1px solid var(--accent-teal)",
-              marginBottom: 12,
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              color: "var(--ink-secondary)",
+              fontSize: 12,
+              fontWeight: 500,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              cursor: "pointer",
             }}
           >
-            <div style={{ fontSize: 11, color: "var(--accent-teal)", fontWeight: 600 }}>
-              ⚓ 锁定源头时空锚点
+            <ArrowLeft size={13} strokeWidth={1.6} />
+            Workbench
+          </button>
+          <span className="eyebrow">AUTO-DAG</span>
+        </div>
+
+        <div className="pane-scroll" style={{ padding: 16 }}>
+          <div
+            style={{
+              paddingBottom: 14,
+              marginBottom: 16,
+              borderBottom: "1px solid var(--hairline)",
+            }}
+          >
+            <div className="eyebrow">ORIGIN ANCHOR · {chapter.number}</div>
+            <div
+              style={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                marginTop: 5,
+                color: "var(--ink)",
+              }}
+            >
+              {chapter.title}
             </div>
-            <div style={{ fontWeight: 700, fontSize: 12.5, marginTop: 3 }}>
-              {chapter.number} · {chapter.title}
-            </div>
-            <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-              当前相位：{currentFrame.phase_label ?? currentFrame.lifecycle_phase}
+            <div
+              className="mono"
+              style={{ fontSize: 11, color: "var(--ink-muted)", marginTop: 4 }}
+            >
+              Frame #{currentFrame.frame_id} · Step {currentFrame.superstep}
             </div>
             {pendingAnchorContext && (
               <div
                 className="mono"
                 style={{
-                  marginTop: 6,
-                  padding: "5px 7px",
-                  borderRadius: 4,
-                  background: "var(--bg-elevated)",
+                  marginTop: 8,
+                  padding: "6px 8px",
+                  borderRadius: 6,
+                  background: "var(--bg-surface-1)",
+                  border: "1px solid var(--hairline)",
                   fontSize: 11,
-                  color: "var(--accent-amber)",
+                  color: "var(--ink-secondary)",
                 }}
               >
-                划选片段：“{pendingAnchorContext.selectedText.slice(0, 72)}”
+                “{pendingAnchorContext.selectedText.slice(0, 76)}”
               </div>
             )}
           </div>
 
-          <form onSubmit={handleSubmitSprout} style={{ marginBottom: 14 }}>
-            <label
-              htmlFor="canvas-sprout-input"
-              style={{
-                display: "block",
-                fontSize: 11.5,
-                fontWeight: 600,
-                marginBottom: 5,
-              }}
-            >
-              🌱 向任意方向派生新图谱节点：
-            </label>
+          <form onSubmit={handleSubmitSprout} style={{ marginBottom: 18 }}>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>
+              SPROUT NEW BRANCH
+            </div>
             <textarea
               id="canvas-sprout-input"
               value={questionInput}
               onChange={(e) => setQuestionInput(e.target.value)}
-              placeholder="输入你的追问（大模型将输出原子图谱卡片并自动虚线连回底层类定义）..."
+              placeholder="围绕当前源码提出追问，自动向右排布卡片并关联静态类契约..."
               rows={3}
               style={{
                 width: "100%",
-                background: "var(--bg-canvas)",
-                color: "var(--text-primary)",
-                border: "1px solid var(--border-strong)",
-                borderRadius: 6,
-                padding: 8,
-                fontSize: 12,
+                background: "var(--bg-surface-1)",
+                color: "var(--ink)",
+                border: "1px solid var(--hairline-strong)",
+                borderRadius: 7,
+                padding: "8px 10px",
+                fontSize: 12.2,
+                lineHeight: 1.5,
                 resize: "vertical",
+                outline: "none",
               }}
             />
             <button
               id="btn-submit-sprout"
               type="submit"
               disabled={isSprouting}
-              className="seg-btn active"
+              className="primary-cta"
               style={{
                 width: "100%",
                 justifyContent: "center",
-                marginTop: 6,
-                padding: "7px 10px",
+                marginTop: 8,
+                height: 30,
               }}
             >
-              <Send size={12} />
-              {isSprouting ? "正在结构化生长节点..." : "向右自动生长探索节点"}
+              <Plus size={13} strokeWidth={1.8} />
+              {isSprouting ? "Synthesizing Node..." : "Sprout Branch"}
             </button>
           </form>
 
-          <div style={{ marginBottom: 14 }}>
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--text-muted)",
-                marginBottom: 5,
-              }}
-            >
-              <Sparkles size={11} style={{ verticalAlign: "middle", marginRight: 4 }} />
-              一键多维探索灵感：
+          <div style={{ marginBottom: 18 }}>
+            <div className="eyebrow" style={{ marginBottom: 4 }}>
+              SUGGESTED DIRECTIONS
             </div>
             {quickPrompts.map((qp, idx) => (
               <button
                 key={idx}
                 type="button"
-                className="spark-btn"
+                className="spark-link"
                 disabled={isSprouting}
                 onClick={() =>
                   void onSproutQuestion(
@@ -613,58 +611,72 @@ export const SemanticCanvasView: React.FC<SemanticCanvasViewProps> = ({
                   )
                 }
               >
-                ↗ {qp}
+                <CornerDownRight
+                  size={11}
+                  strokeWidth={1.5}
+                  style={{ flexShrink: 0, marginTop: 2 }}
+                />
+                <span>{qp}</span>
               </button>
             ))}
           </div>
 
           <div
             style={{
-              paddingTop: 10,
-              borderTop: "1px solid var(--border-subtle)",
+              paddingTop: 14,
+              borderTop: "1px solid var(--hairline)",
               fontSize: 11.5,
-              color: "var(--text-muted)",
+              color: "var(--ink-muted)",
             }}
           >
-            <div>━━ 实线：一阶/二阶追问演化树</div>
-            <div style={{ marginTop: 3 }}>┅┅ 虚线：跨概念静态类/论文图谱闭合</div>
-            <div
-              style={{
-                marginTop: 10,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span>本地个人分支：{chapterPersonalCount} 个</span>
-              {chapterPersonalCount > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span className="mono" style={{ color: "var(--ink-faint)" }}>
+                ───
+              </span>
+              <span>演化追问树 (Tree Lineage)</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+              <span className="mono" style={{ color: "var(--ink-faint)" }}>
+                - - -
+              </span>
+              <span>跨概念结构闭合 (Graph Closure)</span>
+            </div>
+
+            {chapterPersonalCount > 0 && (
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span>Local drafts: {chapterPersonalCount}</span>
                 <button
                   type="button"
-                  className="icon-btn"
-                  style={{ fontSize: 11, color: "var(--accent-coral)" }}
+                  className="subtle-btn"
                   onClick={onClearPersonalChapterBranches}
                 >
-                  <Trash2 size={11} /> 清空个人草稿
+                  <Trash2 size={11} strokeWidth={1.5} /> Reset
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </aside>
 
-      {/* Right ELK Auto-Layout Semantic Graph Canvas */}
       <div style={{ flex: 1, height: "100%" }}>
         <ReactFlow
           nodes={rfNodes}
           edges={rfEdges}
           nodeTypes={NODE_TYPES}
           fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.45}
+          fitViewOptions={{ padding: 0.22 }}
+          minZoom={0.4}
           maxZoom={1.35}
           proOptions={{ hideAttribution: true }}
         >
-          <Background gap={22} size={1} color="var(--border-subtle)" />
+          <Background gap={24} size={1} color="var(--canvas-dots)" />
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>
