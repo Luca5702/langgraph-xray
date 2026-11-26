@@ -7,8 +7,8 @@
   "scripts": {
     "dev:web": "pnpm --filter @langgraph-xray/web dev",
     "dev:api": "pnpm --filter @langgraph-xray/edge-api dev",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "inspect:ch02": "uv run --project tools/kernel-inspector python -m langgraph_xray_inspector.cli record ch02_superstep_barrier"
+    "build": "pnpm --filter @langgraph-xray/web build",
+    "typecheck": "pnpm --filter @langgraph-xray/edge-api exec tsc --noEmit && pnpm --filter @langgraph-xray/web typecheck",
+    "inspect:all": "uv run --project tools/kernel-inspector python -m langgraph_xray_inspector.cli build-all"
   }
 }

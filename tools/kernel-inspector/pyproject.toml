@@ -4,10 +4,20 @@ version = "0.1.0"
 description = "Build-time real kernel TraceRecording hook & AST/Jedi static symbol blueprint indexer for LangGraph X-Ray"
 requires-python = ">=3.12"
 dependencies = [
-    "langgraph>=1.0.0",
+    "langgraph",
+    "langgraph-checkpoint",
+    "langgraph-prebuilt",
+    "langgraph-sdk",
     "jedi>=0.19.2",
     "pydantic>=2.10.0",
+    "pytest>=8.3.0",
 ]
+
+[tool.uv.sources]
+langgraph = { path = "../../vendor/langgraph/libs/langgraph", editable = true }
+langgraph-checkpoint = { path = "../../vendor/langgraph/libs/checkpoint", editable = true }
+langgraph-prebuilt = { path = "../../vendor/langgraph/libs/prebuilt", editable = true }
+langgraph-sdk = { path = "../../vendor/langgraph/libs/sdk-py", editable = true }
 
 [build-system]
 requires = ["hatchling"]

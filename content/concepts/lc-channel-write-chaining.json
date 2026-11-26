@@ -1,0 +1,14 @@
+{
+  "concept_id": "lc-channel-write-chaining",
+  "node_kind": "contract",
+  "lens": "runnable_contract",
+  "title": "PregelNode 后置管道：业务函数 | ChannelWrite 声明式串联",
+  "tier1_tldr": "用户的节点函数本身根本不知道 Channel 的存在（它只是 return {'count': 1}）；编译期 attach_node 把用户函数与一组 ChannelWrite 组装进 PregelNode，函数一返回就自动拆包投递到对应通道与下游触发边。",
+  "tier1_analogy": "类似 Unix 管道 `user_fn | channel_writer | branch_router`，业务计算与状态路由彻底解耦。",
+  "tier2_slice": {
+    "type": "python_sandbox",
+    "minimal_code": "def user_node(state): return {'count': state['count'] + 1}\n\ndef channel_write(ret_dict, out_buf):\n    for k, v in ret_dict.items(): out_buf.append((k, v))\n    out_buf.append(('branch:to:next', '__done__'))\n\nbuf = []\nchannel_write(user_node({'count': 0}), buf)\nprint('Pipeline emitted:', buf)",
+    "expected_stdout": "Pipeline emitted: [('count', 1), ('branch:to:next', '__done__')]"
+  },
+  "ast_matchers": ["ChannelWrite", "attach_node"]
+}

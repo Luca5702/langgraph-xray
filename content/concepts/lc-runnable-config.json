@@ -1,0 +1,14 @@
+{
+  "concept_id": "lc-runnable-config",
+  "node_kind": "contract",
+  "lens": "runnable_contract",
+  "title": "RunnableConfig['configurable'] 隐式控制面总线",
+  "tier1_tldr": "LangGraph 之所以兼容普通 Python 函数签名（只收 state 一个参数），是因为引擎把 thread_id、checkpoint_ns、scratchpad、local_read、__pregel_send 全部暗藏在 RunnableConfig['configurable'] 控制面字典中透传。",
+  "tier1_analogy": "如同 HTTP 请求中的 Header / gRPC Metadata：业务函数只处理 Body（State），框架底层靠 Header 传递追踪与事务控制句柄。",
+  "tier2_slice": {
+    "type": "python_sandbox",
+    "minimal_code": "config = {\n    'configurable': {\n        'thread_id': 'tx-04',\n        'checkpoint_ns': 'run_sub:8f12a',\n        '__pregel_task_id': 'task-99'\n    }\n}\nprint('Control plane keys:', sorted(config['configurable'].keys()))",
+    "expected_stdout": "Control plane keys: ['__pregel_task_id', 'checkpoint_ns', 'thread_id']"
+  },
+  "ast_matchers": ["RunnableConfig", "patch_config"]
+}

@@ -1,0 +1,15 @@
+{
+  "concept_id": "pregel-checkpoint-fault-tolerance",
+  "node_kind": "theory",
+  "lens": "pregel_paper",
+  "title": "超步边界快照容错与确定性重放 (Superstep Checkpointing)",
+  "tier1_tldr": "为什么快照总是在 apply_writes 屏障之后落盘？因为超步边界处所有并发任务均已收束、无飞行中状态，此时冻结通道值与版本号账本，故障恢复或时间旅行只需从最近边界重跑单个超步。",
+  "tier1_analogy": "就像电子游戏的关卡存档点：永远设在清完当前房间怪物之后，而不是子弹还在半空中飞的时候。",
+  "tier2_slice": {
+    "type": "paper_bridge",
+    "citation": "Malewicz et al., Pregel: A System for Large-Scale Graph Processing (SIGMOD 2010), §4.2",
+    "original_quote": "Fault tolerance is achieved through checkpointing. At the beginning of a superstep, the master instructs the workers to save the state of their partitions to persistent storage.",
+    "langgraph_adaptation": "LangGraph 不仅用超步边界 Checkpoint 做崩溃恢复，还创造性地将其扩展为 Human-in-the-loop 挂起底座与 update_state 时间分叉（Fork）引擎，并补充了 pending_writes 表记录半途已完成兄弟节点的成果避免重算。"
+  },
+  "ast_matchers": ["_put_checkpoint", "BaseCheckpointSaver"]
+}

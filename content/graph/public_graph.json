@@ -1,0 +1,206 @@
+{
+  "nodes": [
+    {
+      "id": "spine_ch01_compile",
+      "kind": "spine",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch01_compile_magic",
+      "origin_anchor": "libs/langgraph/langgraph/graph/state.py#compile",
+      "title": "Ch.1 主干 · StateGraph 编译映射",
+      "concise_markdown": "`StateGraph.compile()` 将声明式的 TypedDict 字段与有向边转化为 `CompiledStateGraph` 内部的 `BaseChannel` 字典与 `PregelNode` 触发订阅表。",
+      "heat_score": 30
+    },
+    {
+      "id": "insight_ch01_edge_to_channel",
+      "kind": "insight",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch01_compile_magic",
+      "origin_anchor": "libs/langgraph/langgraph/graph/state.py#attach_edge",
+      "title": "静态边如何变成 EphemeralValue 信标？",
+      "concise_markdown": "`attach_edge(u, v)` 并未保存邻接表指针，而是注册通道 `branch:to:v`（`EphemeralValue`），并在 `u` 的 `ChannelWrite` 末尾追加写信标动作、将 `branch:to:v` 加入 `v.triggers`。",
+      "heat_score": 24,
+      "suggested_sparks": [
+        { "label": "如果是多源汇聚边 add_edge([b, c], d) 会生成什么通道？", "dimension": "mechanism" },
+        { "label": "EphemeralValue 在下一轮是怎么自动擦除的？", "dimension": "edge_case" }
+      ]
+    },
+    {
+      "id": "insight_ch01_reducer_order",
+      "kind": "insight",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch01_compile_magic",
+      "origin_anchor": "libs/langgraph/langgraph/channels/binop.py#BinaryOperatorAggregate",
+      "title": "并发追加列表时顺序是随机的吗？",
+      "concise_markdown": "绝非随机！虽然节点 B、C 并发执行完成先后不定，但在 `_algo.py:apply_writes` 第 257 行会先按 `writes_sort_key(task.path)` 确定性排序任务，再喂给 `operator.add`，保证每次重放列表顺序 100% 一致。",
+      "heat_score": 19,
+      "suggested_sparks": [
+        { "label": "如何绕过 operator.add 直接清空覆盖整个列表？", "dimension": "edge_case" }
+      ]
+    },
+    {
+      "id": "spine_ch02_wakeup",
+      "kind": "spine",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch02_superstep_barrier",
+      "origin_anchor": "libs/langgraph/langgraph/pregel/_algo.py#prepare_next_tasks",
+      "title": "Ch.2 主干 · 超步唤醒与同步屏障",
+      "concise_markdown": "`prepare_next_tasks` 比对 `channel_versions` 与 `versions_seen` 决定本轮并发任务；`apply_writes` 在超步末尾统一合入写入并推进版本号。",
+      "heat_score": 38
+    },
+    {
+      "id": "insight_ch02_fanin_barrier",
+      "kind": "insight",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch02_superstep_barrier",
+      "origin_anchor": "libs/langgraph/langgraph/channels/named_barrier_value.py#NamedBarrierValue",
+      "title": "扇入汇聚屏障：NamedBarrierValue",
+      "concise_markdown": "`_triggers` 本身是逻辑或（`any`），但 `add_edge(['node_b', 'node_c'], 'node_d')` 编译出了专用 `NamedBarrierValue` 通道：只有当 `self.seen == self.names` 集齐双分支写入时 `is_available()` 才为真，精准阻塞提前唤醒。",
+      "heat_score": 34,
+      "suggested_sparks": [
+        { "label": "如果分支 B 快、分支 C 慢（跨多个超步），D 会提前跑吗？", "dimension": "edge_case" },
+        { "label": "循环图里 NamedBarrierValue 跑完一轮如何清零？", "dimension": "mechanism" }
+      ]
+    },
+    {
+      "id": "insight_ch02_barrier_consume",
+      "kind": "insight",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch02_superstep_barrier",
+      "origin_anchor": "libs/langgraph/langgraph/pregel/_algo.py#apply_writes",
+      "title": "consume() 自清理保障循环图可重入",
+      "concise_markdown": "在 `_algo.py:L292` 的 `apply_writes` 中，所有触发了本轮任务的通道都会执行 `channels[chan].consume()`。`NamedBarrierValue` 借此清空 `self.seen` 并递增版本，下一圈循环即可重新等待全集。",
+      "heat_score": 21
+    },
+    {
+      "id": "insight_ch02_read_isolation",
+      "kind": "insight",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch02_superstep_barrier",
+      "origin_anchor": "libs/langgraph/langgraph/pregel/_algo.py#_proc_input",
+      "title": "并发零锁秘诀：Plan 期快照拷贝 + 私有 deque",
+      "concise_markdown": "并行节点 B、C 在 `Plan` 阶段由 `_proc_input` 读取冻结快照，在 `Execute` 阶段仅向各自 `PregelExecutableTask.writes` 私有 `deque` 追加写记录，全程不碰共享 `channels`，零互斥锁实现绝对读写隔离。",
+      "heat_score": 27
+    },
+    {
+      "id": "spine_ch03_send",
+      "kind": "spine",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch03_send_and_command",
+      "origin_anchor": "libs/langgraph/langgraph/types.py#Send",
+      "title": "Ch.3 主干 · Send 动态裂变与 Command 暗道",
+      "concise_markdown": "`Send` 通过内置 `__pregel_tasks` (`Topic`) 通道注入 PUSH 任务；`Command` 在节点返回时同时产出状态通道更新与目标触发信标。",
+      "heat_score": 26
+    },
+    {
+      "id": "insight_ch03_push_vs_pull",
+      "kind": "insight",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch03_send_and_command",
+      "origin_anchor": "libs/langgraph/langgraph/pregel/_algo.py#prepare_single_task",
+      "title": "PUSH 任务与 PULL 任务如何共处同一超步？",
+      "concise_markdown": "`prepare_next_tasks` 先遍历 `channels[TASKS]` 生成 `(PUSH, idx)` 任务（跳过全局 State 读取，直接把 `Send.arg` 作为输入），再扫描静态触发通道生成 `(PULL, name)` 任务，二者合并进同一超步并发池执行。",
+      "heat_score": 22,
+      "suggested_sparks": [
+        { "label": "Command(goto=...) 在子图里加 graph=Command.PARENT 是怎么跨层冒泡的？", "dimension": "mechanism" }
+      ]
+    },
+    {
+      "id": "spine_ch04_bubble",
+      "kind": "spine",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch04_interrupt_replay",
+      "origin_anchor": "libs/langgraph/langgraph/types.py#interrupt",
+      "title": "Ch.4 主干 · GraphInterrupt 冒泡与重放对表",
+      "concise_markdown": "`interrupt()` 利用异常冒泡中止当前超步并将挂起信息存入 `pending_writes`；恢复时从节点函数第 1 行重跑，靠 `PregelScratchpad` 序号计数器原地返回答案。",
+      "heat_score": 35
+    },
+    {
+      "id": "insight_ch04_multi_interrupt",
+      "kind": "insight",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch04_interrupt_replay",
+      "origin_anchor": "libs/langgraph/langgraph/_internal/_scratchpad.py#PregelScratchpad",
+      "title": "同一节点连续调用两次 interrupt() 怎么区分？",
+      "concise_markdown": "`PregelScratchpad.interrupt_counter` 是一个从 0 递增的原子计数器：第 2 次恢复重跑时，第 1 个 `interrupt()` 拿到 `idx=0` 立即返回 `resume[0]` 旧值，走到第 2 个 `interrupt()` 拿到 `idx=1` 才消费新传入的恢复值！",
+      "heat_score": 29,
+      "suggested_sparks": [
+        { "label": "如果在重放时用随机 if 分支改变了 interrupt 调用顺序会怎样？", "dimension": "edge_case" }
+      ]
+    },
+    {
+      "id": "spine_ch05_tuple",
+      "kind": "spine",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch05_checkpoint_timetravel",
+      "origin_anchor": "libs/checkpoint/langgraph/checkpoint/base/__init__.py#CheckpointTuple",
+      "title": "Ch.5 主干 · CheckpointTuple 不可变时间树",
+      "concise_markdown": "通过单调 UUIDv6 `id` 与 `parent_config` 构建不可变状态树，`update_state` 通过派生新分支快照实现零破坏时间分叉（Fork）。",
+      "heat_score": 25
+    },
+    {
+      "id": "insight_ch05_fork_mechanics",
+      "kind": "insight",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch05_checkpoint_timetravel",
+      "origin_anchor": "libs/langgraph/langgraph/pregel/_loop.py#_first",
+      "title": "为什么 Fork 后上游节点不会重新跑一遍？",
+      "concise_markdown": "因为分叉快照完整继承了历史时间点的 `versions_seen` 账本！上游节点已见版本等于通道版本，只有 `as_node` 刚递增的那条下游边通道版本大于下游节点的 `versions_seen`，因此引擎精准只唤醒下游分支。",
+      "heat_score": 23
+    },
+    {
+      "id": "spine_ch06_ns",
+      "kind": "spine",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch06_subgraph_streaming",
+      "origin_anchor": "libs/langgraph/langgraph/pregel/_loop.py#SyncPregelLoop",
+      "title": "Ch.6 主干 · 子图嵌套与 checkpoint_ns 命名空间",
+      "concise_markdown": "编译子图作为 `Runnable` 在父任务上下文中启动独立 `SyncPregelLoop`，通过 `parent_node:task_id` 命名空间隔离存储并共享流式回调。",
+      "heat_score": 22
+    },
+    {
+      "id": "insight_ch06_sub_interrupt",
+      "kind": "insight",
+      "visibility": "crystallized_public",
+      "chapter_id": "ch06_subgraph_streaming",
+      "origin_anchor": "libs/langgraph/langgraph/pregel/_loop.py#_first",
+      "title": "子图内部调了 interrupt()，父图怎么感知并恢复？",
+      "concise_markdown": "`GraphInterrupt` 会穿透子图循环一路冒泡至父图任务捕获，同时子图在自身 `checkpoint_ns` 下保存进度；恢复时父图设置 `CONFIG_KEY_RESUMING` 标志重入子图命名空间，精准接续子图断点。",
+      "heat_score": 20
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "spine_ch01_compile", "target": "insight_ch01_edge_to_channel", "relation": "evolves_to", "style": "solid" },
+    { "id": "e2", "source": "spine_ch01_compile", "target": "insight_ch01_reducer_order", "relation": "evolves_to", "style": "solid" },
+    { "id": "e3", "source": "insight_ch01_edge_to_channel", "target": "langgraph.channels.ephemeral_value.EphemeralValue", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e4", "source": "insight_ch01_edge_to_channel", "target": "langgraph.pregel._write.ChannelWrite", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e5", "source": "insight_ch01_reducer_order", "target": "langgraph.channels.binop.BinaryOperatorAggregate", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e6", "source": "insight_ch01_reducer_order", "target": "pregel-combiners", "relation": "grounds_in_theory", "style": "dashed" },
+
+    { "id": "e7", "source": "spine_ch02_wakeup", "target": "insight_ch02_fanin_barrier", "relation": "evolves_to", "style": "solid" },
+    { "id": "e8", "source": "insight_ch02_fanin_barrier", "target": "insight_ch02_barrier_consume", "relation": "evolves_to", "style": "solid" },
+    { "id": "e9", "source": "spine_ch02_wakeup", "target": "insight_ch02_read_isolation", "relation": "evolves_to", "style": "solid" },
+    { "id": "e10", "source": "insight_ch02_fanin_barrier", "target": "langgraph.channels.named_barrier_value.NamedBarrierValue", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e11", "source": "insight_ch02_barrier_consume", "target": "langgraph.channels.named_barrier_value.NamedBarrierValue", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e12", "source": "insight_ch02_read_isolation", "target": "langgraph.types.PregelExecutableTask", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e13", "source": "insight_ch02_read_isolation", "target": "pregel-superstep-barrier", "relation": "grounds_in_theory", "style": "dashed" },
+    { "id": "e14", "source": "spine_ch02_wakeup", "target": "pregel-vote-to-halt", "relation": "grounds_in_theory", "style": "dashed" },
+
+    { "id": "e15", "source": "spine_ch03_send", "target": "insight_ch03_push_vs_pull", "relation": "evolves_to", "style": "solid" },
+    { "id": "e16", "source": "insight_ch03_push_vs_pull", "target": "langgraph.types.Send", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e17", "source": "insight_ch03_push_vs_pull", "target": "langgraph.channels.topic.Topic", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e18", "source": "spine_ch03_send", "target": "langgraph.types.Command", "relation": "references_symbol", "style": "dashed" },
+
+    { "id": "e19", "source": "spine_ch04_bubble", "target": "insight_ch04_multi_interrupt", "relation": "evolves_to", "style": "solid" },
+    { "id": "e20", "source": "insight_ch04_multi_interrupt", "target": "langgraph._internal._scratchpad.PregelScratchpad", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e21", "source": "spine_ch04_bubble", "target": "langgraph.errors.GraphInterrupt", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e22", "source": "spine_ch04_bubble", "target": "py-exception-control-flow", "relation": "uses_syntax", "style": "dashed" },
+
+    { "id": "e23", "source": "spine_ch05_tuple", "target": "insight_ch05_fork_mechanics", "relation": "evolves_to", "style": "solid" },
+    { "id": "e24", "source": "insight_ch05_fork_mechanics", "target": "langgraph.checkpoint.base.CheckpointTuple", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e25", "source": "spine_ch05_tuple", "target": "pregel-checkpoint-fault-tolerance", "relation": "grounds_in_theory", "style": "dashed" },
+
+    { "id": "e26", "source": "spine_ch06_ns", "target": "insight_ch06_sub_interrupt", "relation": "evolves_to", "style": "solid" },
+    { "id": "e27", "source": "insight_ch06_sub_interrupt", "target": "langgraph.errors.GraphInterrupt", "relation": "references_symbol", "style": "dashed" },
+    { "id": "e28", "source": "spine_ch06_ns", "target": "lc-runnable-config", "relation": "uses_syntax", "style": "dashed" }
+  ]
+}

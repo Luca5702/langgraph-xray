@@ -1,0 +1,54 @@
+name: L2 Self-Evolution · Maintainer Agent PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      edge_api_url:
+        description: "Deployed Cloudflare Edge API base URL for cluster export"
+        required: true
+        type: string
+  schedule:
+    - cron: "0 5 * * 1"
+
+jobs:
+  evolve:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pull High-Signal Confusion Clusters & Evolve Graph/Concepts
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          curl -fsSL -X POST "${{ inputs.edge_api_url }}/api/admin/cluster" | jq '.clusters' > /tmp/clusters.json
+          uv sync --project tools/kernel-inspector
+          uv run --project tools/kernel-inspector python -m langgraph_xray_inspector.cli evolve --clusters-file /tmp/clusters.json
+          uv run --project tools/kernel-inspector python -m langgraph_xray_inspector.cli build-all
+          uv run --project tools/kernel-inspector pytest tools/kernel-inspector/tests -v
+
+      - name: Create Evolution Pull Request if Changes Exist
+        run: |
+          if [[ -n "$(git status --porcelain content/)" ]]; then
+            BR="evolve/auto-$(date +%Y%m%d-%H%M)"
+            git config user.name "langgraph-xray-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git checkout -b "$BR"
+            git add content/ apps/web/src/generated/ apps/edge-api/src/generated/
+            git commit -m "feat(evolve): crystallize reader confusion clusters into Knowledge Graph & Concept Cards"
+            git push -u origin "$BR"
+            gh pr create --title "🌿 [Self-Evolution] Crystallize High-Signal Reader Explorations" \
+              --body "Automated L2 Maintainer Agent PR distilling reader confusion clusters into atomic Knowledge Graph nodes & orthogonal Concept Cards."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

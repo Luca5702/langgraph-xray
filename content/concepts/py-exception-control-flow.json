@@ -1,0 +1,14 @@
+{
+  "concept_id": "py-exception-control-flow",
+  "node_kind": "syntax",
+  "lens": "python_syntax",
+  "title": "异常作为非局部控制流冒泡 (GraphBubbleUp)",
+  "tier1_tldr": "Python 没有原生代数效应（Algebraic Effects / Continuation）；LangGraph 让 interrupt() 抛出特制的 GraphInterrupt 异常直接穿透任意深度的普通函数调用栈，精准回到 PregelRunner 外层捕获挂起。",
+  "tier1_analogy": "完全同构于 React Suspense 内部通过 throw Promise 挂起组件渲染并在恢复后重跑函数组件的经典设计！",
+  "tier2_slice": {
+    "type": "python_sandbox",
+    "minimal_code": "class GraphInterrupt(Exception):\n    def __init__(self, payload): self.payload = payload\n\ndef helper_deep():\n    raise GraphInterrupt({'ask': 'Approve?'})\n\ndef business_node():\n    helper_deep()  # 无需层层写 if paused: return!\n    return {'done': True}\n\ntry:\n    business_node()\nexcept GraphInterrupt as g:\n    print('Intercepted by Loop:', g.payload)",
+    "expected_stdout": "Intercepted by Loop: {'ask': 'Approve?'}"
+  },
+  "ast_matchers": ["GraphInterrupt", "interrupt"]
+}

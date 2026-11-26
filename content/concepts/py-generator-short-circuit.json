@@ -1,0 +1,14 @@
+{
+  "concept_id": "py-generator-short-circuit",
+  "node_kind": "syntax",
+  "lens": "python_syntax",
+  "title": "any() 配合生成器表达式的惰性短路求值",
+  "tier1_tldr": "在检查节点触发通道或静态断点时，any(ver > seen[c] for c in triggers) 不会先构造完整布尔列表，而是逐个迭代并在遇到第一个 True 时立即中断循环返回。",
+  "tier1_analogy": "等价于 JavaScript 的 Array.prototype.some() 或 Rust Iterator::any()，零中间数组内存分配。",
+  "tier2_slice": {
+    "type": "python_sandbox",
+    "minimal_code": "checked = []\ndef probe(ch: str, ver: int, seen: int) -> bool:\n    checked.append(ch)\n    return ver > seen\n\ntriggers = [('ch_a', 2, 1), ('ch_b', 1, 1), ('ch_c', 5, 0)]\nwoke = any(probe(c, v, s) for c, v, s in triggers)\nprint('Woke:', woke, '| Evaluated channels:', checked)",
+    "expected_stdout": "Woke: True | Evaluated channels: ['ch_a']"
+  },
+  "ast_matchers": ["any", "_triggers"]
+}

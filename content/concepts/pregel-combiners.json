@@ -1,0 +1,15 @@
+{
+  "concept_id": "pregel-combiners",
+  "node_kind": "theory",
+  "lens": "pregel_paper",
+  "title": "Combiner 归约器与 BinaryOperatorAggregate",
+  "tier1_tldr": "当多个并行顶点在同一超步向同一目标汇集状态时，通过满足结合律/交换律的二元算子将多份更新合并为单一状态，既消除写冲突又保留全部并行产出。",
+  "tier1_analogy": "如同 MapReduce 中的 Reduce 聚合阶段，或 Git 分支自动合并无冲突的追加日志。",
+  "tier2_slice": {
+    "type": "paper_bridge",
+    "citation": "Malewicz et al., Pregel: A System for Large-Scale Graph Processing (SIGMOD 2010), §3.2",
+    "original_quote": "Combiners reduce message overhead by combining several messages intended for a vertex V into a single message using an associative and commutative operation.",
+    "langgraph_adaptation": "原论文用 Combiner 在网络传输前预聚合点对点消息；LangGraph 将其固化为 BinaryOperatorAggregate 通道（由 Annotated[list, operator.add] 声明），并在 apply_writes 阶段先按 task_path 确定性排序再依次调用 operator，从而连非严格交换律的列表拼接也能保证 100% 幂等重放！"
+  },
+  "ast_matchers": ["BinaryOperatorAggregate", "writes_sort_key"]
+}

@@ -1,0 +1,14 @@
+{
+  "concept_id": "py-deque-atomic-writes",
+  "node_kind": "syntax",
+  "lens": "python_syntax",
+  "title": "collections.deque 线程安全缓冲与 CONFIG_KEY_SEND",
+  "tier1_tldr": "每个 PregelExecutableTask 用 writes = deque() 收集本节点产生的所有通道写操作，并把 writes.extend 直接挂入 config['configurable']['__pregel_send']，CPython 底层保证 deque.append/extend 具备线程安全原子性。",
+  "tier1_analogy": "等价于 Go 中挂在单个 Worker Context 下的无锁追加切片通道，跑完统一倒进主屏障。",
+  "tier2_slice": {
+    "type": "python_sandbox",
+    "minimal_code": "from collections import deque\n\nwrites = deque()\nsend_callback = writes.extend\n\n# ChannelWrite 内部无需持有 Task 引用，直接调回调压入写缓冲\nsend_callback([('logs', ['from_b']), ('branch:to:d', 'node_b')])\nprint('Buffered writes:', list(writes))",
+    "expected_stdout": "Buffered writes: [('logs', ['from_b']), ('branch:to:d', 'node_b')]"
+  },
+  "ast_matchers": ["deque", "CONFIG_KEY_SEND"]
+}

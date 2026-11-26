@@ -1,0 +1,14 @@
+{
+  "concept_id": "py-namedtuple-typeddict",
+  "node_kind": "syntax",
+  "lens": "python_syntax",
+  "title": "NamedTuple 紧凑元组对象 vs TypedDict 字典契约",
+  "tier1_tldr": "Checkpoint 用 TypedDict 因为本质是纯 JSON 序列化字典；而 PregelExecutableTask 与 CheckpointTuple 用 NamedTuple，既保留属性点号访问（task.name），又具备元组的超低内存开销与不可变性。",
+  "tier1_analogy": "TypedDict 像 TypeScript 的纯编译期 interface（运行时就是普通 Object）；NamedTuple 像带字段名的轻量不可变 Struct。",
+  "tier2_slice": {
+    "type": "python_sandbox",
+    "minimal_code": "from typing import NamedTuple, TypedDict\n\nclass StateDict(TypedDict):\n    count: int\n\nclass TaskTuple(NamedTuple):\n    name: str\n    step: int\n\ns: StateDict = {'count': 1}\nt = TaskTuple('node_b', 2)\nprint(type(s).__name__, '|', t.name, t[1], isinstance(t, tuple))",
+    "expected_stdout": "dict | node_b 2 True"
+  },
+  "ast_matchers": ["PregelExecutableTask", "CheckpointTuple"]
+}

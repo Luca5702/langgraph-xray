@@ -117,6 +117,7 @@ export interface SymbolFieldSpec {
   name: string;
   type_repr: string;
   duty_cn: string;
+  live_key?: string;
   live_binding_path?: string;
 }
 
