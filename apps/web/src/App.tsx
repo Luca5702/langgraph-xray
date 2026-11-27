@@ -1,18 +1,9 @@
-import React, {
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import type { ZoomLevel } from "@langgraph-xray/schema";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   KERNEL_BUNDLE,
   type ExtendedGraphNode,
   type KnowledgeGraphEdge,
   type KnowledgeLens,
-  type ViewGear,
 } from "./types/bundle";
 import {
   endorseBranchToCommunity,
@@ -23,34 +14,25 @@ import {
   savePersonalGraph,
   type PersonalGraphStore,
 } from "./store/storage";
-import { TopGpsBar } from "./components/TopGpsBar";
-import { TutorialPane } from "./components/TutorialPane";
-import { SourceXRayPane } from "./components/SourceXRayPane";
-import { RightWorkbenchPane } from "./components/RightWorkbenchPane";
+import {
+  CanvasFloatingHud,
+  type CanvasScope,
+} from "./components/CanvasFloatingHud";
+import {
+  UnifiedMindCanvas,
+  type SproutedLeafRecord,
+} from "./components/UnifiedMindCanvas";
+import { FullScopeDrawer } from "./components/FullScopeDrawer";
 import { SettingsModal } from "./components/SettingsModal";
-
-const SemanticCanvasView = lazy(() =>
-  import("./components/SemanticCanvasView").then((m) => ({
-    default: m.SemanticCanvasView,
-  }))
-);
-const GlobalAtlasView = lazy(() =>
-  import("./components/GlobalAtlasView").then((m) => ({
-    default: m.GlobalAtlasView,
-  }))
-);
 
 function pickSignatureFrame(
   frames: Array<{ superstep: number; lifecycle_phase: string }>
 ): number {
-  const midPlan = frames.findIndex(
-    (f) => f.superstep >= 2 && f.lifecycle_phase === "superstep_plan"
-  );
-  if (midPlan >= 0) return midPlan;
   const step1Plan = frames.findIndex(
     (f) => f.superstep >= 1 && f.lifecycle_phase === "superstep_plan"
   );
-  return step1Plan >= 0 ? step1Plan : Math.min(1, frames.length - 1);
+  if (step1Plan >= 0) return step1Plan;
+  return Math.min(1, frames.length - 1);
 }
 
 export const App: React.FC = () => {
@@ -58,14 +40,17 @@ export const App: React.FC = () => {
     () => new URLSearchParams(window.location.search),
     []
   );
+
   const [activeChapterId, setActiveChapterId] = useState<string>(
     () => initialParams.get("ch") || "ch02_superstep_barrier"
   );
-  const [gear, setGear] = useState<ViewGear>(() => {
-    const g = initialParams.get("gear");
-    return g === "canvas" || g === "atlas" ? g : "workbench";
-  });
-  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("L2");
+  const [scope, setScope] = useState<CanvasScope>(() =>
+    initialParams.get("scope") === "forest" ||
+    initialParams.get("gear") === "atlas"
+      ? "forest"
+      : "chapter"
+  );
+  const [forestKindFilter, setForestKindFilter] = useState<string>("all");
   const [activeLenses, setActiveLenses] = useState<KnowledgeLens[]>(() =>
     loadActiveLenses()
   );
@@ -88,23 +73,40 @@ export const App: React.FC = () => {
     activeChapter.default_slice_id
   );
 
-  const [pinnedSymbolIds, setPinnedSymbolIds] = useState<string[]>(
-    activeChapter.default_pinned_symbols
+  // On-demand sprouted rightward leaves (empty by default for calm attention focus!)
+  const [sproutedLeaves, setSproutedLeaves] = useState<SproutedLeafRecord[]>(
+    () => {
+      if (initialParams.get("demo") === "sprout") {
+        return [
+          {
+            leafId: "leaf_demo_sym",
+            parentNodeId: "node_code_slice",
+            kind: "symbol",
+            targetId: "langgraph.channels.named_barrier_value.NamedBarrierValue",
+          },
+          {
+            leafId: "leaf_demo_ins",
+            parentNodeId: "spine_ch02_b1",
+            kind: "insight",
+            targetId: "insight_ch02_fanin_barrier",
+          },
+        ];
+      }
+      return [];
+    }
   );
-  const [activeSymbolId, setActiveSymbolId] = useState<string>(
-    activeChapter.default_pinned_symbols[0]
-  );
-  const [symbolProvenance, setSymbolProvenance] = useState<string>("");
 
   const [personalGraph, setPersonalGraph] = useState<PersonalGraphStore>({
     nodes: [],
     edges: [],
   });
-  const [pendingAnchorContext, setPendingAnchorContext] = useState<{
-    selectedText: string;
-    targetRef: string;
-  } | null>(null);
   const [isSprouting, setIsSprouting] = useState<boolean>(false);
+  const [drawerTab, setDrawerTab] = useState<
+    "source" | "symbols" | "runtime" | null
+  >(() => {
+    const d = initialParams.get("drawer");
+    return d === "source" || d === "symbols" || d === "runtime" ? d : null;
+  });
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
 
   useEffect(() => {
@@ -118,9 +120,7 @@ export const App: React.FC = () => {
     const nextFrames = KERNEL_BUNDLE.probes[nextCh.chapter_id].trace.frames;
     setActiveChapterId(nextCh.chapter_id);
     setActiveSliceId(nextCh.default_slice_id);
-    setPinnedSymbolIds(nextCh.default_pinned_symbols);
-    setActiveSymbolId(nextCh.default_pinned_symbols[0]);
-    setSymbolProvenance("");
+    setSproutedLeaves([]);
     setFrameIndex(pickSignatureFrame(nextFrames));
     setIsAutoPlaying(false);
   }, []);
@@ -143,7 +143,11 @@ export const App: React.FC = () => {
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (gear !== "workbench") return;
+      if (e.key === "Escape" && drawerTab) {
+        setDrawerTab(null);
+        return;
+      }
+      if (scope !== "chapter") return;
       if (e.key === "ArrowRight") {
         setFrameIndex((p) => Math.min(frames.length - 1, p + 1));
       } else if (e.key === "ArrowLeft") {
@@ -152,27 +156,10 @@ export const App: React.FC = () => {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [frames.length, gear]);
+  }, [frames.length, scope, drawerTab]);
 
   const currentFrame =
     frames[Math.min(frameIndex, frames.length - 1)] ?? frames[0];
-
-  const handleJumpToPhase = useCallback(
-    (phaseId: string) => {
-      const forwardIdx = frames.findIndex(
-        (f, i) => i > frameIndex && f.lifecycle_phase === phaseId
-      );
-      if (forwardIdx >= 0) {
-        setFrameIndex(forwardIdx);
-        return;
-      }
-      const firstIdx = frames.findIndex((f) => f.lifecycle_phase === phaseId);
-      if (firstIdx >= 0) {
-        setFrameIndex(firstIdx);
-      }
-    },
-    [frames, frameIndex]
-  );
 
   const handleToggleLens = useCallback((lens: KnowledgeLens) => {
     setActiveLenses((prev) => {
@@ -184,34 +171,33 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  const handleInspectSymbol = useCallback(
-    (symId: string, provenance?: string) => {
-      if (!KERNEL_BUNDLE.symbols[symId]) return;
-      setActiveSymbolId(symId);
-      setSymbolProvenance(provenance ?? "");
-      setPinnedSymbolIds((prev) =>
-        prev.includes(symId) ? prev : [...prev, symId]
-      );
+  const handleAddOrToggleLeaf = useCallback(
+    (rec: Omit<SproutedLeafRecord, "leafId">, toggleIfPresent = false) => {
+      setSproutedLeaves((prev) => {
+        const existing = prev.find((p) => p.targetId === rec.targetId);
+        if (existing) {
+          return toggleIfPresent
+            ? prev.filter((p) => p.targetId !== rec.targetId)
+            : prev;
+        }
+        const safeId = `leaf_${rec.kind}_${rec.targetId.replace(/[^a-zA-Z0-9_]/g, "_")}`;
+        return [...prev, { ...rec, leafId: safeId }];
+      });
     },
     []
   );
 
-  const handleTogglePinSymbol = useCallback((symId: string) => {
-    setPinnedSymbolIds((prev) => {
-      if (prev.includes(symId)) {
-        return prev.length > 1 ? prev.filter((x) => x !== symId) : prev;
-      }
-      return [...prev, symId];
-    });
+  const handleCloseLeaf = useCallback((leafId: string) => {
+    setSproutedLeaves((prev) => prev.filter((l) => l.leafId !== leafId));
   }, []);
 
-  const handleSproutQuestion = useCallback(
+  const handleSproutAiQuestion = useCallback(
     async (
       parentNodeId: string,
       question: string,
       selectedText: string,
       targetRef: string
-    ) => {
+    ): Promise<ExtendedGraphNode | null> => {
       setIsSprouting(true);
       try {
         const memSummary = JSON.stringify({
@@ -225,7 +211,7 @@ export const App: React.FC = () => {
           chapter_id: activeChapter.chapter_id,
           anchor_type: "source_code",
           target_ref: targetRef,
-          zoom_level: zoomLevel,
+          zoom_level: "L2",
           superstep_frame_id: currentFrame.frame_id,
           active_lenses: activeLenses,
           selected_text: selectedText,
@@ -293,34 +279,13 @@ export const App: React.FC = () => {
           void savePersonalGraph(updated);
           return updated;
         });
+
+        return newNode;
       } finally {
         setIsSprouting(false);
       }
     },
-    [activeChapter.chapter_id, activeLenses, currentFrame, zoomLevel]
-  );
-
-  const handleSproutFromWorkbench = useCallback(
-    (
-      selectedText: string,
-      targetRef: string,
-      _anchorType: "tutorial_mdx" | "source_code",
-      customQuestion?: string
-    ) => {
-      setPendingAnchorContext({ selectedText, targetRef });
-      setGear("canvas");
-      const spineId =
-        KERNEL_BUNDLE.public_graph.nodes.find(
-          (n) =>
-            n.chapter_id === activeChapter.chapter_id && n.kind === "spine"
-        )?.id ?? `spine_${activeChapter.chapter_id}`;
-
-      const autoQ =
-        customQuestion ??
-        `请结合当前源码与超步状态，深入剖析这段逻辑：「${selectedText.slice(0, 60)}」`;
-      void handleSproutQuestion(spineId, autoQ, selectedText, targetRef);
-    },
-    [activeChapter.chapter_id, handleSproutQuestion]
+    [activeChapter.chapter_id, activeLenses, currentFrame]
   );
 
   const handleEndorseNode = useCallback(
@@ -346,24 +311,6 @@ export const App: React.FC = () => {
     [personalGraph.edges]
   );
 
-  const handleClearPersonalChapterBranches = useCallback(() => {
-    setPersonalGraph((prev) => {
-      const removedIds = new Set(
-        prev.nodes
-          .filter((n) => n.chapter_id === activeChapter.chapter_id)
-          .map((n) => n.id)
-      );
-      const updated: PersonalGraphStore = {
-        nodes: prev.nodes.filter((n) => !removedIds.has(n.id)),
-        edges: prev.edges.filter(
-          (e) => !removedIds.has(e.source) && !removedIds.has(e.target)
-        ),
-      };
-      void savePersonalGraph(updated);
-      return updated;
-    });
-  }, [activeChapter.chapter_id]);
-
   const availableSlices = useMemo(
     () =>
       activeChapter.available_slice_ids
@@ -372,145 +319,135 @@ export const App: React.FC = () => {
     [activeChapter]
   );
 
-  const chapterBranchCount = useMemo(() => {
-    const pub = KERNEL_BUNDLE.public_graph.nodes.filter(
-      (n) => n.chapter_id === activeChapter.chapter_id && n.kind === "insight"
-    ).length;
-    const per = personalGraph.nodes.filter(
-      (n) => n.chapter_id === activeChapter.chapter_id
-    ).length;
-    return pub + per;
-  }, [activeChapter.chapter_id, personalGraph.nodes]);
-
-  const totalGrownCount =
-    KERNEL_BUNDLE.public_graph.nodes.filter((n) => n.kind === "insight")
-      .length + personalGraph.nodes.length;
+  const totalForestCount = useMemo(() => {
+    const ids = new Set<string>();
+    KERNEL_BUNDLE.public_graph.nodes.forEach((n) => ids.add(n.id));
+    personalGraph.nodes.forEach((n) => ids.add(n.id));
+    KERNEL_BUNDLE.public_graph.edges.forEach((e) => ids.add(e.target));
+    return ids.size;
+  }, [personalGraph.nodes]);
 
   return (
-    <div className="xray-shell">
-      <TopGpsBar
+    <div className="mind-canvas-shell">
+      <CanvasFloatingHud
         meta={KERNEL_BUNDLE.meta}
         chapters={KERNEL_BUNDLE.chapters}
         activeChapter={activeChapter}
         onSelectChapter={handleSelectChapter}
+        scope={scope}
+        onChangeScope={setScope}
+        forestKindFilter={forestKindFilter}
+        onChangeForestKindFilter={setForestKindFilter}
+        totalNodesCount={totalForestCount}
         frames={frames}
         frameIndex={frameIndex}
         onChangeFrameIndex={setFrameIndex}
         isAutoPlaying={isAutoPlaying}
         onToggleAutoPlay={() => setIsAutoPlaying((p) => !p)}
-        topology={activeProbe.trace.topology}
-        onJumpToPhase={handleJumpToPhase}
+        topologyNodes={activeProbe.trace.topology.nodes}
         activeLenses={activeLenses}
         onToggleLens={handleToggleLens}
-        onSetPureMode={() => {
-          setActiveLenses([]);
-          saveActiveLenses([]);
-        }}
-        gear={gear}
-        onChangeGear={setGear}
-        grownCount={totalGrownCount}
+        onResetFocus={() => setSproutedLeaves([])}
+        sproutedCount={sproutedLeaves.length}
+        onOpenFullExplorer={(tab) => setDrawerTab(tab ?? "source")}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      {gear === "workbench" && (
-        <main className="workbench-grid">
-          <TutorialPane
-            chapter={activeChapter}
-            concepts={KERNEL_BUNDLE.concepts}
-            activeLenses={activeLenses}
-            onInspectSymbol={handleInspectSymbol}
-            onOpenCanvasFromSpine={() => setGear("canvas")}
-            onSproutFromSelection={handleSproutFromWorkbench}
-            branchCountByChapter={chapterBranchCount}
-          />
+      <UnifiedMindCanvas
+        scope={scope}
+        forestKindFilter={forestKindFilter}
+        chapter={activeChapter}
+        probe={activeProbe}
+        availableSlices={availableSlices}
+        activeSliceId={activeSliceId}
+        onSelectSlice={setActiveSliceId}
+        frames={frames}
+        frameIndex={frameIndex}
+        activeLenses={activeLenses}
+        symbols={KERNEL_BUNDLE.symbols}
+        concepts={KERNEL_BUNDLE.concepts}
+        publicNodes={KERNEL_BUNDLE.public_graph.nodes}
+        publicEdges={KERNEL_BUNDLE.public_graph.edges}
+        personalNodes={personalGraph.nodes}
+        personalEdges={personalGraph.edges}
+        sproutedLeaves={sproutedLeaves}
+        onAddOrToggleLeaf={handleAddOrToggleLeaf}
+        onCloseLeaf={handleCloseLeaf}
+        isSprouting={isSprouting}
+        onSproutAiQuestion={handleSproutAiQuestion}
+        onEndorseNode={handleEndorseNode}
+        onOpenFullExplorer={(tab) => setDrawerTab(tab)}
+        onTeleportFromForest={(cid, symId) => {
+          handleSelectChapter(cid);
+          setScope("chapter");
+          if (symId && KERNEL_BUNDLE.symbols[symId]) {
+            setSproutedLeaves([
+              {
+                leafId: `leaf_sym_${symId.replace(/[^a-zA-Z0-9_]/g, "_")}`,
+                parentNodeId: "node_code_slice",
+                kind: "symbol",
+                targetId: symId,
+              },
+            ]);
+          }
+        }}
+      />
 
-          <SourceXRayPane
-            availableSlices={availableSlices}
-            activeSliceId={activeSliceId}
-            onSelectSlice={setActiveSliceId}
-            zoomLevel={zoomLevel}
-            onChangeZoom={setZoomLevel}
-            probe={activeProbe}
-            currentFrame={currentFrame}
-            onInspectSymbol={handleInspectSymbol}
-            onSproutFromCode={(code, fileRef) =>
-              handleSproutFromWorkbench(code, fileRef, "source_code")
-            }
-          />
-
-          <RightWorkbenchPane
-            symbols={KERNEL_BUNDLE.symbols}
-            pinnedSymbolIds={pinnedSymbolIds}
-            activeSymbolId={activeSymbolId}
-            symbolProvenance={symbolProvenance}
-            onSelectSymbol={(sid) => {
-              setActiveSymbolId(sid);
-              setSymbolProvenance("");
-            }}
-            onTogglePinSymbol={handleTogglePinSymbol}
-            frames={frames}
-            frameIndex={frameIndex}
-            topologyNodes={activeProbe.trace.topology.nodes}
-          />
-        </main>
-      )}
-
-      <Suspense
-        fallback={
-          <div
-            className="canvas-stage"
-            style={{
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--ink-muted)",
-              fontSize: 13,
-            }}
-          >
-            正在为你铺开知识卡片…
-          </div>
-        }
-      >
-        {gear === "canvas" && (
-          <SemanticCanvasView
-            chapter={activeChapter}
-            currentFrame={currentFrame}
-            publicNodes={KERNEL_BUNDLE.public_graph.nodes}
-            publicEdges={KERNEL_BUNDLE.public_graph.edges}
-            personalNodes={personalGraph.nodes}
-            personalEdges={personalGraph.edges}
-            symbols={KERNEL_BUNDLE.symbols}
-            concepts={KERNEL_BUNDLE.concepts}
-            pendingAnchorContext={pendingAnchorContext}
-            isSprouting={isSprouting}
-            onSproutQuestion={handleSproutQuestion}
-            onEndorseNode={handleEndorseNode}
-            onClearPersonalChapterBranches={handleClearPersonalChapterBranches}
-            onPinSymbolAndReturn={(symId) => {
-              handleInspectSymbol(symId, "从思维生长画布固定到手边");
-              setGear("workbench");
-            }}
-            onBackToWorkbench={() => setGear("workbench")}
-          />
-        )}
-
-        {gear === "atlas" && (
-          <GlobalAtlasView
-            publicNodes={KERNEL_BUNDLE.public_graph.nodes}
-            publicEdges={KERNEL_BUNDLE.public_graph.edges}
-            personalNodes={personalGraph.nodes}
-            personalEdges={personalGraph.edges}
-            symbols={KERNEL_BUNDLE.symbols}
-            concepts={KERNEL_BUNDLE.concepts}
-            onTeleportToChapter={(cid, symId) => {
-              handleSelectChapter(cid);
-              if (symId) {
-                handleInspectSymbol(symId, "从全局知识地图跳转定位");
+      {drawerTab && (
+        <FullScopeDrawer
+          initialTab={drawerTab}
+          availableSlices={availableSlices}
+          activeSliceId={activeSliceId}
+          onSelectSlice={setActiveSliceId}
+          probe={activeProbe}
+          currentFrame={currentFrame}
+          symbols={KERNEL_BUNDLE.symbols}
+          concepts={KERNEL_BUNDLE.concepts}
+          onSproutSymbolToCanvas={(symId) => {
+            setScope("chapter");
+            handleAddOrToggleLeaf(
+              {
+                parentNodeId: "node_code_slice",
+                kind: "symbol",
+                targetId: symId,
+              },
+              false
+            );
+          }}
+          onSproutConceptToCanvas={(cid) => {
+            setScope("chapter");
+            handleAddOrToggleLeaf(
+              {
+                parentNodeId: `spine_${activeChapter.sections[0].block_id}`,
+                kind: "concept",
+                targetId: cid,
+              },
+              false
+            );
+          }}
+          onSproutCodeQuestionToCanvas={(qualname, fileRef) => {
+            setScope("chapter");
+            void handleSproutAiQuestion(
+              "node_code_slice",
+              `深入剖析 ${qualname} 在超步执行中的关键职责与边界行为`,
+              qualname,
+              fileRef
+            ).then((created) => {
+              if (created) {
+                handleAddOrToggleLeaf(
+                  {
+                    parentNodeId: "node_code_slice",
+                    kind: "insight",
+                    targetId: created.id,
+                  },
+                  false
+                );
               }
-              setGear("workbench");
-            }}
-          />
-        )}
-      </Suspense>
+            });
+          }}
+          onClose={() => setDrawerTab(null)}
+        />
+      )}
 
       {settingsOpen && (
         <SettingsModal

@@ -32,7 +32,7 @@
         "spine_node_id": "spine_ch01_edges",
         "heading": "2. 消灭“边”：attach_node 与 attach_edge 的暗度陈仓",
         "paragraphs": [
-          "打开中栏 `state.py` 的 `compile()` 源码可以看到最颠覆直觉的一步：编译产物 [[sym:langgraph.graph.state.CompiledStateGraph|CompiledStateGraph]] 把所有节点函数包裹进 [[sym:langgraph.pregel._read.PregelNode|PregelNode]]，并在尾部串联 [[concept:lc-channel-write-chaining|ChannelWrite 声明式写入管道]]。",
+          "顺着右侧源码分支查看 `state.py` 的 `compile()` 可以看到最颠覆直觉的一步：编译产物 [[sym:langgraph.graph.state.CompiledStateGraph|CompiledStateGraph]] 把所有节点函数包裹进 [[sym:langgraph.pregel._read.PregelNode|PregelNode]]，并在尾部串联 [[concept:lc-channel-write-chaining|ChannelWrite 声明式写入管道]]。",
           "而你调用的 `add_edge('classify_ticket', 'vip_lane')` 在编译后变成了什么？它创建了一条名为 `branch:to:vip_lane` 的瞬态信标通道（[[sym:langgraph.channels.ephemeral_value.EphemeralValue|EphemeralValue]]）：上游跑完往里写一个触发标记，下游把该通道挂入自己的 `triggers` 列表。至此，命令式的“顺着边走”被彻底降维成了纯数据驱动的“通道版本订阅”！"
         ],
         "margin_note": {
@@ -62,7 +62,7 @@
         "spine_node_id": "spine_ch02_wakeup",
         "heading": "1. Plan 相位：channel_versions > versions_seen 唤醒法则",
         "paragraphs": [
-          "拨动右栏沙盒至 Step #1 Plan 相位：当 `node_a` 完成写入后，`prepare_next_tasks` 调用 `_triggers` 扫描候选节点。这里利用 [[concept:py-generator-short-circuit|any() 惰性短路求值]] 对比全局 [[sym:langgraph.checkpoint.base.Checkpoint|Checkpoint]] 中的 `channel_versions` 与各节点的 `versions_seen` 账本。",
+          "点按底部胶囊步进至 Step #1 Plan 相位：当 `node_a` 完成写入后，`prepare_next_tasks` 调用 `_triggers` 扫描候选节点。这里利用 [[concept:py-generator-short-circuit|any() 惰性短路求值]] 对比全局 [[sym:langgraph.checkpoint.base.Checkpoint|Checkpoint]] 中的 `channel_versions` 与各节点的 `versions_seen` 账本。",
           "一旦发现某触发通道可读且全局版本号严格大于该节点上次见过的版本，引擎便通过 `_proc_input` 为 `node_b` 和 `node_c` 各自拷贝一份只读输入快照，封装成 [[sym:langgraph.types.PregelExecutableTask|PregelExecutableTask]]；若全图无任何节点满足条件，即达成 [[concept:pregel-vote-to-halt|Vote to Halt（投票终止）]] 自然退出主循环。"
         ],
         "margin_note": {
@@ -75,7 +75,7 @@
         "spine_node_id": "spine_ch02_barrier",
         "heading": "2. Execute 读写隔离与 Apply Writes 汇聚屏障",
         "paragraphs": [
-          "继续单步拨至 Step #1 Execute 相位：仔细观察右栏沙盒！此时 `node_b` 已算完结果并调用 [[concept:py-deque-atomic-writes|deque 线程安全缓冲]] 存入 `pending_writes`，但全局 `channel_values['logs']` 依然停留在 `['init', 'from_a']`——并发执行的 `node_c` 绝对看不到 `node_b` 的半途产出，完美兑现了论文中的 [[concept:pregel-superstep-barrier|BSP 超步同步屏障]]。",
+          "继续步进至 Step #1 Execute 相位，观察右侧运行脉搏分支：此时 `node_b` 已算完结果并调用 [[concept:py-deque-atomic-writes|deque 线程安全缓冲]] 存入 `pending_writes`，但全局 `channel_values['logs']` 依然停留在 `['init', 'from_a']`——并发执行的 `node_c` 绝对看不到 `node_b` 的半途产出，完美兑现了论文中的 [[concept:pregel-superstep-barrier|BSP 超步同步屏障]]。",
           "那么下游汇聚节点 `node_d` 如何确保等 B、C 都跑完才启动？秘密就在 `add_edge(['node_b', 'node_c'], 'node_d')` 编译出的 `join:node_b+node_c:node_d` 通道（[[sym:langgraph.channels.named_barrier_value.NamedBarrierValue|NamedBarrierValue]]）：只有当内部 `seen` 集合攒齐 `{'node_b', 'node_c'}` 全集时，`is_available()` 才翻转为 True 唤醒 `node_d`！"
         ],
         "margin_note": {
@@ -144,7 +144,7 @@
         "spine_node_id": "spine_ch04_bubble",
         "heading": "1. 暂停的真相：抛出 GraphInterrupt 击穿调用栈",
         "paragraphs": [
-          "切到右栏沙盒观察 `Run1·首次执行至挂起` 最后一帧：当 `human_risk_gate` 执行到 `interrupt(...)` 时，CPython 根本不可能把当前 C 栈帧序列化存进数据库！LangGraph 采用的是极简而精妙的 [[concept:py-exception-control-flow|异常作为非局部控制流冒泡]] 机制：",
+          "步进至 `Run1·首次执行至挂起` 最后一幕：当 `human_risk_gate` 执行到 `interrupt(...)` 时，CPython 根本不可能把当前 C 栈帧序列化存进数据库！LangGraph 采用的是极简而精妙的 [[concept:py-exception-control-flow|异常作为非局部控制流冒泡]] 机制：",
           "`interrupt()` 通过 [[concept:py-contextvar-isolation|ContextVar 隐式上下文]] 取出当前任务的 [[sym:langgraph._internal._scratchpad.PregelScratchpad|PregelScratchpad]]，发现尚无匹配的恢复值后，直接 `raise` [[sym:langgraph.errors.GraphInterrupt|GraphInterrupt]]！该异常直接跳过 `after_tick()` 屏障合入，把中断请求写入 Checkpointer 的 `pending_writes` 后安全结束本次调用。"
         ],
         "margin_note": {
@@ -157,7 +157,7 @@
         "spine_node_id": "spine_ch04_replay",
         "heading": "2. 恢复的真相：从函数第 1 行重跑 + Scratchpad 索引对表",
         "paragraphs": [
-          "继续拨动沙盒进入 `Run2·Resume重放恢复`：当你调用 `invoke(Command(resume='APPROVED_BY_CFO'))` 时，`human_risk_gate` **实际上是从头第 1 行重新执行了一遍**！",
+          "继续点按底部胶囊进入 `Run2·Resume重放恢复`：当你调用 `invoke(Command(resume='APPROVED_BY_CFO'))` 时，`human_risk_gate` **实际上是从头第 1 行重新执行了一遍**！",
           "当代码再次走到 `interrupt()` 时，`scratchpad.interrupt_counter()` 产出序号 `0`，命中本轮注入的恢复值 `'APPROVED_BY_CFO'` 并直接将其作为普通返回值交给 `verdict` 变量，继续往下走完 `return`！正因如此，**`interrupt()` 之前的代码必须是幂等的（严禁裸写未包装的扣款或随机副作用）**。"
         ]
       }
@@ -183,7 +183,7 @@
         "spine_node_id": "spine_ch05_tuple",
         "heading": "1. CheckpointTuple 四大件与单向父指针树",
         "paragraphs": [
-          "在 LangGraph 中，持久化绝不只是把 `State` 字典转成 JSON 存起来。打开手边器械盘查看 [[sym:langgraph.checkpoint.base.CheckpointTuple|CheckpointTuple]]（注意它采用 [[concept:py-namedtuple-typeddict|NamedTuple 与 TypedDict 组合建模]]）：每次 [[concept:pregel-checkpoint-fault-tolerance|超步边界落盘]] 都由 `config`、`checkpoint`、`metadata`、`parent_config` 和 `pending_writes` 共同构成。",
+          "在 LangGraph 中，持久化绝不只是把 `State` 字典转成 JSON 存起来。点击展开 [[sym:langgraph.checkpoint.base.CheckpointTuple|CheckpointTuple]] 结构分支（注意它采用 [[concept:py-namedtuple-typeddict|NamedTuple 与 TypedDict 组合建模]]）：每次 [[concept:pregel-checkpoint-fault-tolerance|超步边界落盘]] 都由 `config`、`checkpoint`、`metadata`、`parent_config` 和 `pending_writes` 共同构成。",
           "每一个新超步都会生成单调递增的 UUIDv6 `checkpoint_id`，并通过 `parent_config` 指向前驱快照。因此同一个 `thread_id` 下存储的不是一条线，而是一棵**不可变 Git 提交树（Immutable DAG）**！"
         ]
       },
@@ -192,7 +192,7 @@
         "spine_node_id": "spine_ch05_fork",
         "heading": "2. update_state(..., as_node=...) 如何开辟平行时间线",
         "paragraphs": [
-          "观察右栏沙盒从 `Timeline-A` 切入 `Timeline-B·分叉重跑时间线` 的瞬间：当我们定位到 `write_draft` 结束后的历史快照并调用 `update_state(..., {'quality_score': 95}, as_node='write_draft')` 时，[[sym:langgraph.checkpoint.base.BaseCheckpointSaver|BaseCheckpointSaver]] 并未篡改旧快照。",
+          "观察运行轨迹从 `Timeline-A` 切入 `Timeline-B·分叉重跑时间线` 的瞬间：当我们定位到 `write_draft` 结束后的历史快照并调用 `update_state(..., {'quality_score': 95}, as_node='write_draft')` 时，[[sym:langgraph.checkpoint.base.BaseCheckpointSaver|BaseCheckpointSaver]] 并未篡改旧快照。",
           "它以该历史快照为父节点派生了一个 `source='update'` 的新分支快照，伪装成 `write_draft` 刚刚更新了通道版本并触发了 `branch:to:peer_review`。随后 `invoke(None, forked_cfg)` 直接从新分支接力，仅唤醒下游 `peer_review` 跑出 `publish_ready`！"
         ],
         "margin_note": {
@@ -223,7 +223,7 @@
         "heading": "1. Runnable 同构性：子图只是一个特殊的节点可执行体",
         "paragraphs": [
           "因为 [[sym:langgraph.graph.state.CompiledStateGraph|CompiledStateGraph]] 本身继承自 LangChain `Runnable`，它可以毫无违和地直接挂作父图的节点，或者像本关探针一样在父图节点 `run_research_subgraph` 内部调用 `compiled_subgraph.invoke(...)`。",
-          "拨动右栏沙盒观察 `scratchpad.checkpoint_ns` 字段的变化：一旦进入子图循环，[[concept:lc-runnable-config|RunnableConfig 控制面总线]] 会自动携带父任务派生的命名空间前缀 `run_research_subgraph:<task_id>`。子图内所有超步快照都存储在这个独立命名空间下，哪怕父子图拥有同名字段也绝不会发生版本冲突！"
+          "观察运行脉搏分支中 `scratchpad.checkpoint_ns` 字段的变化：一旦进入子图循环，[[concept:lc-runnable-config|RunnableConfig 控制面总线]] 会自动携带父任务派生的命名空间前缀 `run_research_subgraph:<task_id>`。子图内所有超步快照都存储在这个独立命名空间下，哪怕父子图拥有同名字段也绝不会发生版本冲突！"
         ]
       },
       {
